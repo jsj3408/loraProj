@@ -70,7 +70,7 @@ int main(void)
     state_t relay_action = off;
     int32_t comp_temp;
     uint8_t debug = 0;
-    uint8_t loraAddr[] = {0x00, 0x0D, 0x10, 0x18};
+    uint8_t loraAddr[] = {0x01, 0x0D, 0x10, 0x18};
     //each read operation will require two bytes of output
     uint8_t loraData[10] = {0};
 	//SIM_SCGC5 = SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTB_MASK | SIM_SCGC5_PORTC_MASK | SIM_SCGC5_PORTD_MASK | SIM_SCGC5_PORTE_MASK;
@@ -108,6 +108,12 @@ int main(void)
     		ret = spi_transfer(SPI_Read, loraAddr[j], NULL, 1, &(loraData[2*j]));
     		printf("ret value of SPI transfer:%d, Addr:0x%x data:0x%x\n",
 					ret, loraAddr[j], loraData[2*j]);
+    		if(0x01 == loraAddr[j])
+    		{
+    			printf("Mode is:%hu, LowFreqModeOn val:%hu\n",
+    					LongRangeMode(loraData[2*j]),
+    					LowFreqModeOn(loraData[2*j]));
+    		}
     	}
 //    	ret = spi_transfer(SPI_Read, *chip_addr, NULL, 2, chip_id_read);
 //    	printf("ret value of SPI transfer:%d, data:%x\n", ret, chip_id_read[1]);
