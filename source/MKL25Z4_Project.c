@@ -76,7 +76,7 @@ int main(void)
 	//SIM_SCGC5 = SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTB_MASK | SIM_SCGC5_PORTC_MASK | SIM_SCGC5_PORTD_MASK | SIM_SCGC5_PORTE_MASK;
     /* Init board hardware. */
 	KL_InitPins(); //Initializing pins
-    printf("i2c pins and GPIO pins initialized...I hope\n");
+    printf("i2c/SPI pins and GPIO pins initialized...I hope\n");
 
     /* Set systick reload value to generate 1ms interrupt */
     if (SysTick_Config(SystemCoreClock / 1000U))
@@ -103,18 +103,19 @@ int main(void)
     if(ret)
     {
     	lora_init();
-    	for(int j=0; j < sizeof(loraAddr); j++)
-    	{
-    		ret = spi_transfer(SPI_Read, loraAddr[j], NULL, 1, &(loraData[2*j]));
-    		printf("ret value of SPI transfer:%d, Addr:0x%x data:0x%x\n",
-					ret, loraAddr[j], loraData[2*j]);
-    		if(0x01 == loraAddr[j])
-    		{
-    			printf("Mode is:%hu, LowFreqModeOn val:%hu\n",
-    					LongRangeMode(loraData[2*j]),
-    					LowFreqModeOn(loraData[2*j]));
-    		}
-    	}
+    	lora_test_transmit();
+//    	for(int j=0; j < sizeof(loraAddr); j++)
+//    	{
+//    		ret = spi_transfer(SPI_Read, loraAddr[j], NULL, 1, &(loraData[2*j]));
+//    		printf("ret value of SPI transfer:%d, Addr:0x%x data:0x%x\n",
+//					ret, loraAddr[j], loraData[2*j]);
+//    		if(0x01 == loraAddr[j])
+//    		{
+//    			printf("Mode is:%hu, LowFreqModeOn val:%hu\n",
+//    					LongRangeMode(loraData[2*j]),
+//    					LowFreqModeOn(loraData[2*j]));
+//    		}
+//    	}
 //    	ret = spi_transfer(SPI_Read, *chip_addr, NULL, 2, chip_id_read);
 //    	printf("ret value of SPI transfer:%d, data:%x\n", ret, chip_id_read[1]);
     }

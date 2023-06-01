@@ -49,9 +49,9 @@ status_t spi_transfer(spi_direction_t spi_direction, uint8_t address,
 	spi_transfer_t xfer_address;
 	spi_transfer_t xfer_data;
 	//this should be 0x7F if write operation or 0xFF if read operation
-	uint8_t bit_mod = spi_direction ? 0xFF : 0x7F;
+	uint8_t bit_mod = (spi_direction == SPI_Write) ? 0x80 : 0x00;
 	//here we set the MSBit to 1 or 0 based on read/write
-	address &= bit_mod;
+	address |= bit_mod;
 
 	//set up the address struct.
 	xfer_address.txData = &address;

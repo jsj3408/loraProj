@@ -16,10 +16,6 @@
 /**********************************************************************************************************************
 * Defines section
 *********************************************************************************************************************/
-
-/**********************************************************************************************************************
-* Macro section, defines with operation and function
-*********************************************************************************************************************/
 #define BITCLEAN(bitlen)		(~(0b11111111 << bitlen)) //if bitlen is 2, then output should be 0b00000011
 #define LONGRANGEMODE_SHIFT		7
 #define LONGRANGEMODE_BITLEN 	1
@@ -52,7 +48,44 @@
 #define RXPAYLCRCON_SHIFT		2
 #define RXPAYLCRCON_BITLEN		1
 
+//LORA register addresses
+#define REG_FIFO			0x00
+#define REG_OPMODE			0x01
+#define REG_MODEMCONFIG1	0x1D
+#define REG_MODEMCONFIG2	0x1E
+#define REG_FIFOADDRPTR		0x0D
+#define REG_FIFOTXBASEADDR	0x0E
+#define REG_IRQFLAGS		0x12
 
+//data to write
+#define FSK_OOK_MODE 	0
+#define LORA_MODE		1
+#define SLEEP_MODE		0b000
+#define STANDBY_MODE	0b001
+#define TRANSMIT_MODE	0b011
+
+//bandwidth
+#define BANDWIDTH_1		0b0000 //7.8kHz
+#define BANDWIDTH_2		0b0001 //104.kHz
+
+//CR
+#define CODERATE_1	0b001 // 4/5
+
+//header
+#define EXPL_HEADER	0
+#define IMPL_HEADER	1
+
+//TX continuous mode
+#define TX_SINGLE_MODE	0
+#define TX_CONT_MODE	1
+
+//RX payload CRC
+#define CRC_DISABLE	0
+#define CRC_ENABLE	1
+
+/**********************************************************************************************************************
+* Macro section, defines with operation and function
+*********************************************************************************************************************/
 #define GET_VAL(x,SHIFT,BITLEN) 	((x >> SHIFT) & BITCLEAN(BITLEN)) //x is the input uint8_t value
 #define SET_VAL(x,SHIFT, BITLEN) 	((x & BITCLEAN(BITLEN)) << SHIFT)   //x stands for the bit data to be written
 #define CLEAR_VAL(x,SHIFT,BITLEN)	(x & (~BITCLEAN(BITLEN) << SHIFT))  //x is the input uint8_t value to be cleared
@@ -70,5 +103,6 @@
 * Function declaration section
 *********************************************************************************************************************/
 int32_t lora_init(void);
+int32_t lora_test_transmit(void);
 
 #endif /* SX1278_H_ */

@@ -60,8 +60,6 @@ typedef struct
 *********************************************************************************************************************/
 void ssd1306_init(void);
 bool transpose(unsigned char * input, int rows,unsigned char * output);
-void SysTick_DelayTicks(uint32_t n);
-void SysTick_Handler(void);
 void ssd1306_write(unsigned char * input , uint16_t input_len);
 
 #endif /* SSD1306_H_ */

@@ -13,7 +13,6 @@
 /**********************************************************************************************************************
 * Global variable section
 *********************************************************************************************************************/
-volatile uint32_t g_systickCounter;
 uint8_t CMD_control_byte = 0x00 ;
 uint8_t data_control_byte = 0x40 ;
 /**********************************************************************************************************************
@@ -51,22 +50,6 @@ bool transpose(unsigned char * input, int rows,unsigned char * output)
 	return ret;
 }
 
-
-void SysTick_Handler(void)
-{
-    if (g_systickCounter != 0U)
-    {
-        g_systickCounter--;
-    }
-}
-
-void SysTick_DelayTicks(uint32_t n)
-{
-    g_systickCounter = n;
-    while (g_systickCounter != 0U)
-    {
-    }
-}
 
 void ssd1306_init(void)
 {
