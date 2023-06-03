@@ -37,10 +37,6 @@ int32_t lora_test_transmit(void)
 {
 	//each SPI read operation requires two bytes of output (put for safety)
 	uint8_t data[2] = {0};
-	uint8_t LongRangeMode = 0;
-	uint8_t AccessSharedReg = 0;
-	uint8_t LowFreqModeOn = 0;
-	uint8_t Mode;
 	char test_payload[] = "This is a Test Payload.";
 	//make sure OpMode is in sleep mode = 0
 	(void) spi_transfer(SPI_Read, REG_OPMODE, NULL, 1, data);
@@ -123,4 +119,76 @@ int32_t lora_test_transmit(void)
 //				GET_VAL(data[0], DEVICEMODE_SHIFT, DEVICEMODE_BITLEN));
 
 	return 1;
+}
+
+int32_t lora_test_receive(void)
+{
+	//each SPI read operation requires two bytes of output (put for safety)
+	uint8_t data[2] = {0};
+	uint8_t RX_interrupt_val = 0;
+	char test_payload[] = "This is a Test Payload.";
+	//make sure OpMode is in sleep mode = 0
+	(void) spi_transfer(SPI_Read, REG_OPMODE, NULL, 1, data);
+	DB_PRINT(1, "Value in REG_OPMODE is:%hu", data[0]);
+	DB_PRINT(1, "LongRangeMode:%hu, AccessSharedReg:%hu, LowfreqModeOn:%hu"
+			"CurrentMode:%hu",
+			GET_VAL(data[0], LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN),
+			GET_VAL(data[0], ACCSHAREDREG_SHIFT, ACCSHAREDREG_BITLEN),
+			GET_VAL(data[0], LOWFREQMODEON_SHIFT, LOWFREQMODEON_BITLEN),
+			GET_VAL(data[0], DEVICEMODE_SHIFT, DEVICEMODE_BITLEN));
+	//TODO: read preamble length, FreqHoppingPeriod, RegFifoTxBaseAddr, RegFifoAddrPtr, RegPayloadLength
+	(void) spi_transfer(SPI_Read, REG_FIFOADDRPTR, NULL, 1, data);
+	DB_PRINT(1, "Value in REG_FIFOADDRPTR is:%hu", data[0]);
+	(void) spi_transfer(SPI_Read, REG_FIFORXBASEADDR, NULL, 1, data);
+	DB_PRINT(1, "Value in REG_FIFORXBASEADDR is:%hu", data[0]);
+	(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
+	DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
+	//read the preamble length
+	spi_transfer(SPI_Read, REG_PREAMBLE_MSB, NULL, 2, data);
+	DB_PRINT(1, "Value in REG_PREAMBLE_MSB: %hu, REG_PREAMBLE_LSB:%hu",
+				data[0], data[1]);
+	//TODO: Program this preamble length to max value?
+	spi_transfer(SPI_Read, REG_RX_NB_BYTES, NULL, 2, data);
+	DB_PRINT(1, "Value in REG_RX_NB_BYTES: %hu", data[0]);
+	//read the RegFifoRxByteAddr
+
+	//rewrite the data TO put OpMode to Sleep and to LORA mode
+	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
+				SET_VAL(SLEEP_MODE, DEVICEMODE_SHIFT, DEVICEMODE_BITLEN);
+	DB_PRINT(1, "New value written in REG_OPMODE is:%hu", data[0]);
+	(void) spi_transfer(SPI_Write, REG_OPMODE, data, 1, NULL);
+	//reset the address pointers here
+	data[0] = 0x0;
+	(void) spi_transfer(SPI_Write, REG_FIFORXBASEADDR, data, 1, NULL);
+	(void) spi_transfer(SPI_Write, REG_FIFOADDRPTR, data, 1, NULL);
+	//clear the IRQ flags
+	data[0] = 0xFF;
+	(void) spi_transfer(SPI_Write, REG_IRQFLAGS, data, 1, NULL);
+	//write preamble length to 0x50
+	data[0] = 0x50;
+	(void) spi_transfer(SPI_Write, REG_PREAMBLE_LSB, data, 1, NULL);
+	//play with the symb timeout
+	data[0] = 0xFF; //this writes the LSB
+	(void) spi_transfer(SPI_Write, REG_SYMBTMO_LSB, data, 1, NULL);
+//	data[0] = SET_VAL(11, SYMBTMO_MSB_SHIFT, SYMBTMO_MSB_BITLEN); //this is the MSB
+//	// DB_PRINT(1, "New value written in REG_MODEMCONFIG2 is:%hu", data[0]);
+//	(void) spi_transfer(SPI_Write, REG_MODEMCONFIG2, data, 1, NULL);
+
+	//now start the receive operation
+	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
+				SET_VAL(RX_SINGL_MODE, DEVICEMODE_SHIFT, DEVICEMODE_BITLEN);
+	(void) spi_transfer(SPI_Write, REG_OPMODE, data, 1, NULL);
+	//now wait for the RX_interrupt to be issued
+	data[0] = 0;
+	RX_interrupt_val = SET_VAL(1, IRQFLAG_RXTIMEOUT, IRQFLAG_BITLEN) |
+			SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN) |
+			SET_VAL(1, IRQFLAG_VALIDHEAD, IRQFLAG_BITLEN);
+	while((data[0] & RX_interrupt_val) == 0) //loop as long as we dont have any of these bits set
+	{
+		data[0] = 0;
+		(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
+		DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
+		SysTick_DelayTicks(100U);
+	}
+	DB_PRINT(1, "If you are here the Some RX related interrupt has been raised!");
 }

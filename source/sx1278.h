@@ -26,6 +26,7 @@
 #define DEVICEMODE_SHIFT        0
 #define DEVICEMODE_BITLEN       3
 
+#define IRQFLAG_BITLEN		1	//the length will always be 1
 #define IRQFLAG_RXTIMEOUT	7
 #define IRQFLAG_RXDONE		6
 #define IRQFLAG_PAYLCRCERR	5
@@ -47,6 +48,8 @@
 #define TXCONTINUOUSMODE_BITLEN	1
 #define RXPAYLCRCON_SHIFT		2
 #define RXPAYLCRCON_BITLEN		1
+#define SYMBTMO_MSB_SHIFT		0
+#define SYMBTMO_MSB_BITLEN		2
 
 //LORA register addresses
 #define REG_FIFO			0x00
@@ -55,7 +58,14 @@
 #define REG_MODEMCONFIG2	0x1E
 #define REG_FIFOADDRPTR		0x0D
 #define REG_FIFOTXBASEADDR	0x0E
+#define REG_FIFORXBASEADDR	0x0F
+#define REG_FIFORXCURRADDR	0x10
 #define REG_IRQFLAGS		0x12
+#define REG_RX_NB_BYTES		0x13
+#define REG_SYMBTMO_LSB		0x1F
+#define REG_PREAMBLE_MSB	0x20
+#define REG_PREAMBLE_LSB	0x21
+#define REG_FIFORXBYTEADDR	0x25
 
 //data to write
 #define FSK_OOK_MODE 	0
@@ -63,6 +73,8 @@
 #define SLEEP_MODE		0b000
 #define STANDBY_MODE	0b001
 #define TRANSMIT_MODE	0b011
+#define RX_SINGL_MODE	0b110
+#define RX_CONT_MODE	0b101
 
 //bandwidth
 #define BANDWIDTH_1		0b0000 //7.8kHz
@@ -104,5 +116,6 @@
 *********************************************************************************************************************/
 int32_t lora_init(void);
 int32_t lora_test_transmit(void);
+int32_t lora_test_receive(void);
 
 #endif /* SX1278_H_ */

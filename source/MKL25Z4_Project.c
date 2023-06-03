@@ -41,10 +41,15 @@
 
 /* TODO: insert other definitions and declarations here. */
 
+/**********************************************************************************************************************
+* Defines section
+*********************************************************************************************************************/
 
 //#define USE_I2C
 //#define GPIO_TOGGLE
 #define USE_SPI
+//#define LORA_TX
+#define LORA_RX
 /*
  * @brief   Application entry point.
  */
@@ -53,6 +58,10 @@
 *********************************************************************************************************************/
 uint8_t status;
 status_t result = kStatus_Success;
+
+/**********************************************************************************************************************
+* Global function definition
+*********************************************************************************************************************/
 
 int main(void)
 {
@@ -103,7 +112,12 @@ int main(void)
     if(ret)
     {
     	lora_init();
+#ifdef LORA_TX
     	lora_test_transmit();
+#endif
+#ifdef LORA_RX
+    	lora_test_receive();
+#endif
 //    	for(int j=0; j < sizeof(loraAddr); j++)
 //    	{
 //    		ret = spi_transfer(SPI_Read, loraAddr[j], NULL, 1, &(loraData[2*j]));
