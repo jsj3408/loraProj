@@ -48,8 +48,8 @@
 //#define USE_I2C
 //#define GPIO_TOGGLE
 #define USE_SPI
-//#define LORA_TX
-#define LORA_RX
+#define LORA_TX
+//#define LORA_RX
 /*
  * @brief   Application entry point.
  */

@@ -98,7 +98,8 @@ int32_t lora_test_transmit(void)
 	(void) spi_transfer(SPI_Write, REG_OPMODE, data, 1, NULL);
 	//now wait for the TX_interrupt to be issued
 	data[0] = 0;
-	while((data[0] & (0b00001000)) != 0b00001000)
+	int retry = 8;
+	while((retry-- > 0) && ((data[0] & (0b00001000)) != 0b00001000))
 	{
 		data[0] = 0;
 		(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
@@ -164,15 +165,17 @@ int32_t lora_test_receive(void)
 	//clear the IRQ flags
 	data[0] = 0xFF;
 	(void) spi_transfer(SPI_Write, REG_IRQFLAGS, data, 1, NULL);
-	//write preamble length to 0x50
+	//write preamble length to 0xFF
 	data[0] = 0x50;
 	(void) spi_transfer(SPI_Write, REG_PREAMBLE_LSB, data, 1, NULL);
 	//play with the symb timeout
 	data[0] = 0xFF; //this writes the LSB
 	(void) spi_transfer(SPI_Write, REG_SYMBTMO_LSB, data, 1, NULL);
-//	data[0] = SET_VAL(11, SYMBTMO_MSB_SHIFT, SYMBTMO_MSB_BITLEN); //this is the MSB
-//	// DB_PRINT(1, "New value written in REG_MODEMCONFIG2 is:%hu", data[0]);
-//	(void) spi_transfer(SPI_Write, REG_MODEMCONFIG2, data, 1, NULL);
+	//set spreading factor as 7 and write MSB of SymbTimeout
+	data[0] = SET_VAL(7, SPREADINGFACTOR_SHIFT, SPREADINGFACTOR_BITLEN) |
+			SET_VAL(0x11, SYMBTMO_MSB_SHIFT, SYMBTMO_MSB_BITLEN); //this is the MSB
+	// DB_PRINT(1, "New value written in REG_MODEMCONFIG2 is:%hu", data[0]);
+	(void) spi_transfer(SPI_Write, REG_MODEMCONFIG2, data, 1, NULL);
 
 	//now start the receive operation
 	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
@@ -183,12 +186,13 @@ int32_t lora_test_receive(void)
 	RX_interrupt_val = SET_VAL(1, IRQFLAG_RXTIMEOUT, IRQFLAG_BITLEN) |
 			SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN) |
 			SET_VAL(1, IRQFLAG_VALIDHEAD, IRQFLAG_BITLEN);
-	while((data[0] & RX_interrupt_val) == 0) //loop as long as we dont have any of these bits set
+	int retry = 8;
+	while((retry-- > 0) && ((data[0] & RX_interrupt_val) == 0)) //loop as long as we dont have any of these bits set
 	{
 		data[0] = 0;
 		(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
 		DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
-		SysTick_DelayTicks(100U);
+		SysTick_DelayTicks(25U);
 	}
 	DB_PRINT(1, "If you are here the Some RX related interrupt has been raised!");
 }
