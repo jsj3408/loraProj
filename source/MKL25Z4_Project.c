@@ -50,14 +50,29 @@
 #define USE_SPI
 #define LORA_TX
 //#define LORA_RX
+//#define LED_TEST
 /*
  * @brief   Application entry point.
  */
+
+/**********************************************************************************************************************
+* Local typedef section
+*********************************************************************************************************************/
+
+/**********************************************************************************************************************
+* Local enum section
+*********************************************************************************************************************/
+
 /**********************************************************************************************************************
 * Global variable
 *********************************************************************************************************************/
 uint8_t status;
 status_t result = kStatus_Success;
+
+/**********************************************************************************************************************
+* Local function declaration section
+*********************************************************************************************************************/
+static void KL_InitPins(void);
 
 /**********************************************************************************************************************
 * Global function definition
@@ -82,11 +97,6 @@ int main(void)
     uint8_t loraAddr[] = {0x01, 0x0D, 0x10, 0x18};
     //each read operation will require two bytes of output
     uint8_t loraData[10] = {0};
-	//SIM_SCGC5 = SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTB_MASK | SIM_SCGC5_PORTC_MASK | SIM_SCGC5_PORTD_MASK | SIM_SCGC5_PORTE_MASK;
-    /* Init board hardware. */
-	KL_InitPins(); //Initializing pins
-    printf("i2c/SPI pins and GPIO pins initialized...I hope\n");
-
     /* Set systick reload value to generate 1ms interrupt */
     if (SysTick_Config(SystemCoreClock / 1000U))
     {
@@ -94,6 +104,10 @@ int main(void)
         {
         }
     }
+	//SIM_SCGC5 = SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTB_MASK | SIM_SCGC5_PORTC_MASK | SIM_SCGC5_PORTD_MASK | SIM_SCGC5_PORTE_MASK;
+    /* Init board hardware. */
+	KL_InitPins(); //Initializing pins
+    printf("i2c/SPI pins and GPIO pins initialized...I hope\n");
 
     /*BOARD_InitBootPins();
     BOARD_InitBootClocks();
@@ -207,3 +221,69 @@ int main(void)
     return 0 ;
 }
 
+
+
+/**
+ * TODO: Change the location of this function later
+ * */
+static void KL_InitPins(void)
+{
+
+	//enabling clock for only PortE for I2C communication and GPIO use
+	CLOCK_EnableClock(kCLOCK_PortE);
+	port_pin_config_t config =
+		{
+			kPORT_PullUp,
+		    kPORT_FastSlewRate,
+		    kPORT_PassiveFilterDisable,
+		    kPORT_OpenDrainEnable,
+		    kPORT_LowDriveStrength,
+			kPORT_MuxAlt6,
+		    0,
+		};
+	PORT_SetPinConfig(PORTE, 0U, &config);
+	PORT_SetPinConfig(PORTE, 1U, &config);
+
+	gpio_pin_config_t output_config =
+	{
+			kGPIO_DigitalOutput,
+			0
+	};
+	//since the LED's are common cathode, we drive them Low to turn ON and High to turn OFF
+	gpio_pin_config_t output_config_LED =
+	{
+			kGPIO_DigitalOutput,
+			1
+	};
+
+	PORT_SetPinMux(PORTE, 30U, kPORT_MuxAsGpio);
+	GPIO_PinInit(GPIOE, 30U, &output_config);
+/*
+	//Enable PortC for SPI communication
+	CLOCK_EnableClock(kCLOCK_PortC);
+	PORT_SetPinMux(PORTC, 4U, kPORT_MuxAlt2);
+	PORT_SetPinMux(PORTC, 5U, kPORT_MuxAlt2);
+	PORT_SetPinMux(PORTC, 6U, kPORT_MuxAlt2);
+	PORT_SetPinMux(PORTC, 7U, kPORT_MuxAlt2);
+	*/
+	//use PORTD to enable SPI0 comms
+	CLOCK_EnableClock(kCLOCK_PortD);
+	//enable the SS/CS as GPIO only, the rest as i2c.
+	PORT_SetPinMux(PORTD, 0U, kPORT_MuxAsGpio);
+	GPIO_PinInit(GPIOD, 0U, &output_config);
+	//PORT_SetPinMux(PORTD, 0U, kPORT_MuxAlt2);
+	PORT_SetPinMux(PORTD, 1U, kPORT_MuxAlt2);
+	PORT_SetPinMux(PORTD, 2U, kPORT_MuxAlt2);
+	PORT_SetPinMux(PORTD, 3U, kPORT_MuxAlt2);
+
+	//enable clock for PortB to toggle on board LEDs
+	CLOCK_EnableClock(kCLOCK_PortB);
+	//Should be RED LED.
+	PORT_SetPinMux(PORTB, 18U, kPORT_MuxAsGpio);
+	//should be GREEN LED
+	PORT_SetPinMux(PORTB, 19U, kPORT_MuxAsGpio);
+	//set them as outputs
+	GPIO_PinInit(GPIOB, 18U, &output_config_LED);
+	GPIO_PinInit(GPIOB, 19U, &output_config_LED);
+
+}

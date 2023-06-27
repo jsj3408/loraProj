@@ -28,8 +28,8 @@
 *********************************************************************************************************************/
 int32_t lora_init(void)
 {
+	//clear the GPIO light pins
 	return 1;
-
 }
 
 
@@ -98,7 +98,9 @@ int32_t lora_test_transmit(void)
 	(void) spi_transfer(SPI_Write, REG_OPMODE, data, 1, NULL);
 	//now wait for the TX_interrupt to be issued
 	data[0] = 0;
-	int retry = 8;
+	volatile int retry = 50;
+	GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
+	GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
 	while((retry-- > 0) && ((data[0] & (0b00001000)) != 0b00001000))
 	{
 		data[0] = 0;
@@ -106,7 +108,18 @@ int32_t lora_test_transmit(void)
 		DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
 		SysTick_DelayTicks(100U);
 	}
-	DB_PRINT(1, "If you are here the TX Done interrupt has been raised!");
+	GPIO_SetPinsOutput(GPIOB, 0x01 << 18);
+	GPIO_SetPinsOutput(GPIOB, 0x01 << 19);
+	if(retry < 1)
+	{
+		DB_PRINT(1, "Retries failed and no TX related interrupt has been raised!");
+		GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
+	}
+	else
+	{
+		DB_PRINT(1, "If you are here the TX Done interrupt has been raised!");
+		GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
+	}
 
 	//TODO: Configure preamble length later (in TX and RX) and check what this is. Write IRQ mask also
 
@@ -179,14 +192,16 @@ int32_t lora_test_receive(void)
 
 	//now start the receive operation
 	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
-				SET_VAL(RX_SINGL_MODE, DEVICEMODE_SHIFT, DEVICEMODE_BITLEN);
+				SET_VAL(RX_CONT_MODE, DEVICEMODE_SHIFT, DEVICEMODE_BITLEN);
 	(void) spi_transfer(SPI_Write, REG_OPMODE, data, 1, NULL);
 	//now wait for the RX_interrupt to be issued
 	data[0] = 0;
 	RX_interrupt_val = SET_VAL(1, IRQFLAG_RXTIMEOUT, IRQFLAG_BITLEN) |
 			SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN) |
 			SET_VAL(1, IRQFLAG_VALIDHEAD, IRQFLAG_BITLEN);
-	int retry = 8;
+	volatile int retry = 50;
+	GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
+	GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
 	while((retry-- > 0) && ((data[0] & RX_interrupt_val) == 0)) //loop as long as we dont have any of these bits set
 	{
 		data[0] = 0;
@@ -194,5 +209,16 @@ int32_t lora_test_receive(void)
 		DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
 		SysTick_DelayTicks(25U);
 	}
-	DB_PRINT(1, "If you are here the Some RX related interrupt has been raised!");
+	GPIO_SetPinsOutput(GPIOB, 0x01 << 18);
+	GPIO_SetPinsOutput(GPIOB, 0x01 << 19);
+	if(retry < 1)
+	{
+		DB_PRINT(1, "Retries failed and no RX related interrupt has been raised!");
+		GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
+	}
+	else
+	{
+		DB_PRINT(1, "Some RX related interrupt has been raised!");
+		GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
+	}
 }

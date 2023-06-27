@@ -11,6 +11,18 @@
 #include "bmp280.h"
 #include "time.h"
 #include "math.h"
+
+/**********************************************************************************************************************
+* Local macro section, defines with operation and function
+*********************************************************************************************************************/
+/**********************************************************************************************************************
+* Local typedef section
+*********************************************************************************************************************/
+
+/**********************************************************************************************************************
+* Local enum section
+*********************************************************************************************************************/
+
 /**********************************************************************************************************************
 * Global variable
 *********************************************************************************************************************/
@@ -24,58 +36,12 @@ int32_t comp_temp;
 clock_t finish;
 
 /**********************************************************************************************************************
-* Local macro section, defines with operation and function
+* Local function declaration section
 *********************************************************************************************************************/
 
 /**********************************************************************************************************************
 * Global function definition
 *********************************************************************************************************************/
-/**
- * TODO: Change the location of this function later
- * */
-void KL_InitPins(void)
-{
-
-	//enabling clock for only PortE for I2C communication and GPIO use
-	CLOCK_EnableClock(kCLOCK_PortE);
-	port_pin_config_t config =
-		{
-			kPORT_PullUp,
-		    kPORT_FastSlewRate,
-		    kPORT_PassiveFilterDisable,
-		    kPORT_OpenDrainEnable,
-		    kPORT_LowDriveStrength,
-			kPORT_MuxAlt6,
-		    0,
-		};
-	PORT_SetPinConfig(PORTE, 0U, &config);
-	PORT_SetPinConfig(PORTE, 1U, &config);
-
-	gpio_pin_config_t output_config =
-	{
-			kGPIO_DigitalOutput,
-			0
-	};
-	PORT_SetPinMux(PORTE, 30U, kPORT_MuxAsGpio);
-	GPIO_PinInit(GPIOE, 30U, &output_config);
-/*
-	//Enable PortC for SPI communication
-	CLOCK_EnableClock(kCLOCK_PortC);
-	PORT_SetPinMux(PORTC, 4U, kPORT_MuxAlt2);
-	PORT_SetPinMux(PORTC, 5U, kPORT_MuxAlt2);
-	PORT_SetPinMux(PORTC, 6U, kPORT_MuxAlt2);
-	PORT_SetPinMux(PORTC, 7U, kPORT_MuxAlt2);
-	*/
-	//use PORTD to enable SPI0 comms
-	CLOCK_EnableClock(kCLOCK_PortD);
-	//enable the SS/CS as GPIO only, the rest as i2c.
-	PORT_SetPinMux(PORTD, 0U, kPORT_MuxAsGpio);
-	GPIO_PinInit(GPIOD, 0U, &output_config);
-	//PORT_SetPinMux(PORTD, 0U, kPORT_MuxAlt2);
-	PORT_SetPinMux(PORTD, 1U, kPORT_MuxAlt2);
-	PORT_SetPinMux(PORTD, 2U, kPORT_MuxAlt2);
-	PORT_SetPinMux(PORTD, 3U, kPORT_MuxAlt2);
-}
 
 uint8_t bmp280_init(void)
 {

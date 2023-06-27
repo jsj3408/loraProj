@@ -25,7 +25,6 @@ typedef enum{
 /**********************************************************************************************************************
 * Function declaration section
 *********************************************************************************************************************/
-void KL_InitPins(void);
 uint8_t bmp280_init(void);
 void get_compensation_data(void);
 int32_t compensatedTemp(int32_t adcT);
