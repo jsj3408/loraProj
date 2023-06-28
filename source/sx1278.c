@@ -72,6 +72,9 @@ int32_t lora_test_transmit(void)
 			SET_VAL(CRC_DISABLE, RXPAYLCRCON_SHIFT, RXPAYLCRCON_BITLEN);
 	DB_PRINT(1, "New value written in REG_MODEMCONFIG2 is:%hu", data[0]);
 	(void) spi_transfer(SPI_Write, REG_MODEMCONFIG2, data, 1, NULL);
+	//write preamble length to 0x50
+	data[0] = 0x50;
+	(void) spi_transfer(SPI_Write, REG_PREAMBLE_LSB, data, 1, NULL);
 
 	/*change mode to STANDBY!**/
 	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
@@ -178,7 +181,7 @@ int32_t lora_test_receive(void)
 	//clear the IRQ flags
 	data[0] = 0xFF;
 	(void) spi_transfer(SPI_Write, REG_IRQFLAGS, data, 1, NULL);
-	//write preamble length to 0xFF
+	//write preamble length to 0x50
 	data[0] = 0x50;
 	(void) spi_transfer(SPI_Write, REG_PREAMBLE_LSB, data, 1, NULL);
 	//play with the symb timeout
@@ -189,6 +192,12 @@ int32_t lora_test_receive(void)
 			SET_VAL(0x11, SYMBTMO_MSB_SHIFT, SYMBTMO_MSB_BITLEN); //this is the MSB
 	// DB_PRINT(1, "New value written in REG_MODEMCONFIG2 is:%hu", data[0]);
 	(void) spi_transfer(SPI_Write, REG_MODEMCONFIG2, data, 1, NULL);
+	//now write the configuration
+	data[0] = SET_VAL(BANDWIDTH_1, BANDWIDTH_SHIFT, BANDWIDTH_BITLEN) |
+			SET_VAL(CODERATE_1, CODRATE_SHIFT, CODRATE_BITLEN) |
+			SET_VAL(EXPL_HEADER, IMPLHEADERMODEON_SHIFT, IMPLHEADERMODEON_BITLEN);
+	DB_PRINT(1, "New value written in REG_MODEMCONFIG1 is:%hu", data[0]);
+	(void) spi_transfer(SPI_Write, REG_MODEMCONFIG1, data, 1, NULL);
 
 	//now start the receive operation
 	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
@@ -199,15 +208,16 @@ int32_t lora_test_receive(void)
 	RX_interrupt_val = SET_VAL(1, IRQFLAG_RXTIMEOUT, IRQFLAG_BITLEN) |
 			SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN) |
 			SET_VAL(1, IRQFLAG_VALIDHEAD, IRQFLAG_BITLEN);
-	volatile int retry = 50;
+	// 1min
+	volatile int retry = 600;
 	GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
 	GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
 	while((retry-- > 0) && ((data[0] & RX_interrupt_val) == 0)) //loop as long as we dont have any of these bits set
 	{
 		data[0] = 0;
 		(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
-		DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
-		SysTick_DelayTicks(25U);
+		DB_PRINT(1, "Retry: %d, Value in REG_IRQFLAGS is:%hu", retry, data[0]);
+		SysTick_DelayTicks(1000U);
 	}
 	GPIO_SetPinsOutput(GPIOB, 0x01 << 18);
 	GPIO_SetPinsOutput(GPIOB, 0x01 << 19);
