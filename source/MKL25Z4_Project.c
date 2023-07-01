@@ -80,20 +80,10 @@ static void KL_InitPins(void);
 
 int main(void)
 {
-    uint8_t chip_id_read[2] = {0};
-    uint8_t data[10] = {0};
-    uint8_t chip_addr[1] = {0xD0};
-    uint8_t temp_len = 0; //length of the comp_temp output
-    uint16_t output_print_len = 0; //length of output print
-    unsigned char * temp_str = NULL; //string to hold the int-to-string text
-    unsigned char output_print[] = "Temp is: ";
-    uint32_t temp = 0;
+
     //status_t result = 1;
-    uint8_t retry = 4;
     uint8_t ret = 0;
-    state_t relay_action = off;
-    int32_t comp_temp;
-    uint8_t debug = 0;
+
     uint8_t loraAddr[] = {0x01, 0x0D, 0x10, 0x18};
     //each read operation will require two bytes of output
     uint8_t loraData[10] = {0};
@@ -149,55 +139,6 @@ int main(void)
     }
 #endif
 
-#ifdef USE_I2C
-    ret = i2c_init();
-
-    if (ret)
-    {
-    	printf("initialized i2c...\n");
-    	ssd1306_init();
-    	printf("Initialized SSD1306.....\n");
-    	bmp280_init();
-
-		printf("Initialized BMP280.");
-		retry  = 50;
-		result = 1;
-
-		//ssd1306_write(output_print, sizeof(output_print));
-
-		while(1)
-		{
-			result = i2c_transfer(BMP280_ADDR, kI2C_Read ,0xFA, data, 3); //read temperature
-			temp = (uint32_t) (((uint32_t) data[2] >> 4) | ((uint32_t) data[1] << 4) | ((uint32_t) data[0] << 12));
-			//printf("Raw temp is %d\n",temp);
-			comp_temp = compensatedTemp((int32_t) temp);
-			printf("Compensated temp is %d\n",comp_temp);
-			//use snprintf to add the compensated temp to a string
-			//use snprintf to find length of item
-			temp_len = snprintf(NULL, 0, "%d", comp_temp);
-			//allocate one more for null terminator
-			temp_len += 1;
-			temp_str = (unsigned char *) malloc(temp_len * sizeof(unsigned char));
-			snprintf(temp_str, temp_len, "%d", comp_temp);
-			//find length of final string to be displayed
-			output_print_len = sizeof(output_print) + temp_len;
-			//concatenate the temperature value with the output print
-			strcat(output_print, temp_str);
-			ssd1306_write(output_print, output_print_len);
-			//ssd1306_write(temp_str, temp_len);
-			SysTick_DelayTicks(1000U);
-			free(temp_str);
-			//10 is the size of the "Temp is: " string
-			memset(output_print+9, 0, temp_len);
-			//relay_action = controlTempAlgorithm (50 , 2);
-			//printf ("Heater action:%d\n ",relay_action);
-		}
-    }
-    else
-    {
-    	printf("initialization failed...\n");
-    }
-#endif
 
 #ifdef GPIO_TOGGLE
     while (retry--)

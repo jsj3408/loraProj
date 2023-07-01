@@ -12,9 +12,6 @@
 * Includes section
 *********************************************************************************************************************/
 #include "MKL25Z4.h"
-#include "bmp280.h"
-#include "ssd1306.h"
-#include "i2c_comm.h"
 #include "spi_comm.h"
 #include "sx1278.h"
 

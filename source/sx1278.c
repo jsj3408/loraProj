@@ -38,6 +38,8 @@ int32_t lora_test_transmit(void)
 	//each SPI read operation requires two bytes of output (put for safety)
 	uint8_t data[2] = {0};
 	char test_payload[] = "This is a Test Payload.";
+	//this payload should exclude null character
+	uint8_t payload_len = sizeof(test_payload) - 1;
 	//make sure OpMode is in sleep mode = 0
 	(void) spi_transfer(SPI_Read, REG_OPMODE, NULL, 1, data);
 	DB_PRINT(1, "Value in REG_OPMODE is:%hu", data[0]);
@@ -85,12 +87,16 @@ int32_t lora_test_transmit(void)
 	(void) spi_transfer(SPI_Write, REG_FIFOTXBASEADDR, data, 1, NULL);
 	(void) spi_transfer(SPI_Write, REG_FIFOADDRPTR, data, 1, NULL);
 	//load data byte by byte in a loop...hope this is okay
-	//this payload should exclude null character
 	DB_PRINT(1, "Now load the data into the buffer!!");
-	for(int i = 0; i < (sizeof(test_payload) - 1); i++)
+	for(int i = 0; i < payload_len; i++)
 	{
 		spi_transfer(SPI_Write, REG_FIFO, (uint8_t *) &test_payload[i], 1, NULL);
 	}
+	//we write the payload length to be transferred
+	(void) spi_transfer(SPI_Write, REG_PAYLOADLENGTH, &payload_len, 1, NULL);
+	//just to double check
+	(void) spi_transfer(SPI_Read, REG_PAYLOADLENGTH, NULL, 1, data);
+	DB_PRINT(1, "Value in REG_PAYLOADLENGTH is:%hu", data[0]);
 	//read the TXAddr ptr...the offset should have happened ideally
 	(void) spi_transfer(SPI_Read, REG_FIFOADDRPTR, NULL, 1, data);
 	DB_PRINT(1, "Value in REG_FIFOADDRPTR is:%hu", data[0]);
@@ -101,7 +107,7 @@ int32_t lora_test_transmit(void)
 	(void) spi_transfer(SPI_Write, REG_OPMODE, data, 1, NULL);
 	//now wait for the TX_interrupt to be issued
 	data[0] = 0;
-	volatile int retry = 50;
+	volatile int retry = 10;
 	GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
 	GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
 	while((retry-- > 0) && ((data[0] & (0b00001000)) != 0b00001000))
@@ -109,7 +115,7 @@ int32_t lora_test_transmit(void)
 		data[0] = 0;
 		(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
 		DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
-		SysTick_DelayTicks(100U);
+		SysTick_DelayTicks(1000U);
 	}
 	GPIO_SetPinsOutput(GPIOB, 0x01 << 18);
 	GPIO_SetPinsOutput(GPIOB, 0x01 << 19);
@@ -143,7 +149,9 @@ int32_t lora_test_receive(void)
 	//each SPI read operation requires two bytes of output (put for safety)
 	uint8_t data[2] = {0};
 	uint8_t RX_interrupt_val = 0;
-	char test_payload[] = "This is a Test Payload.";
+	uint8_t payload_len = 0;
+	uint8_t RX_curr_Address = 0;
+	uint8_t RX_buffer[256] = {0}; //since LORA buffer is 256Bytes, I allocate this much space
 	//make sure OpMode is in sleep mode = 0
 	(void) spi_transfer(SPI_Read, REG_OPMODE, NULL, 1, data);
 	DB_PRINT(1, "Value in REG_OPMODE is:%hu", data[0]);
@@ -206,8 +214,8 @@ int32_t lora_test_receive(void)
 	//now wait for the RX_interrupt to be issued
 	data[0] = 0;
 	RX_interrupt_val = SET_VAL(1, IRQFLAG_RXTIMEOUT, IRQFLAG_BITLEN) |
-			SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN) |
-			SET_VAL(1, IRQFLAG_VALIDHEAD, IRQFLAG_BITLEN);
+			SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN);
+			//| SET_VAL(1, IRQFLAG_VALIDHEAD, IRQFLAG_BITLEN);
 	// 1min
 	volatile int retry = 600;
 	GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
@@ -225,10 +233,34 @@ int32_t lora_test_receive(void)
 	{
 		DB_PRINT(1, "Retries failed and no RX related interrupt has been raised!");
 		GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
+		return 1;
 	}
 	else
 	{
 		DB_PRINT(1, "Some RX related interrupt has been raised!");
 		GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
+	}
+	//if the RX done bit was set,
+	if((data[0] & SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN)) == 0)
+	{
+		return 1;
+	}
+	(void) spi_transfer(SPI_Read, REG_FIFOADDRPTR, NULL, 1, data);
+	DB_PRINT(1, "Value in REG_FIFOADDRPTR is:%hu", data[0]);
+	(void) spi_transfer(SPI_Read, REG_RX_NB_BYTES, NULL, 1, data);
+	DB_PRINT(1, "Value in REG_RX_NB_BYTES is:%hu", data[0]);
+	payload_len = data[0];
+	(void) spi_transfer(SPI_Read, REG_FIFORXCURRADDR, NULL, 1, data);
+	DB_PRINT(1, "Value in REG_FIFORXCURRADDR is:%hu", data[0]);
+	RX_curr_Address = data[0];
+	(void) spi_transfer(SPI_Read, REG_FIFORXBYTEADDR, NULL, 1, data);
+	DB_PRINT(1, "Value in REG_FIFORXBYTEADDR is:%hu", data[0]);
+	//set the FifoAddrPtr to the RXCurrentAddress
+	(void) spi_transfer(SPI_Write, REG_FIFOADDRPTR, &RX_curr_Address, 1, NULL);
+	for(int j = 0; j < payload_len; j++)
+	{
+		//read one byte at a time; and so allow the AddrPtr to increment
+		(void) spi_transfer(SPI_Read, REG_FIFO, NULL, 1, (RX_buffer + j));
+		DB_PRINT(1, "Data:%d - %c", j, RX_buffer[j]);
 	}
 }

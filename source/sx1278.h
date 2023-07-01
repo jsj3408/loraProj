@@ -65,6 +65,7 @@
 #define REG_SYMBTMO_LSB		0x1F
 #define REG_PREAMBLE_MSB	0x20
 #define REG_PREAMBLE_LSB	0x21
+#define REG_PAYLOADLENGTH	0x22
 #define REG_FIFORXBYTEADDR	0x25
 
 //data to write
