@@ -67,6 +67,8 @@
 #define REG_PREAMBLE_LSB	0x21
 #define REG_PAYLOADLENGTH	0x22
 #define REG_FIFORXBYTEADDR	0x25
+#define REG_DIOMAPPING1		0x40
+#define REG_DIOMAPPING2		0x41
 
 //data to write
 #define FSK_OOK_MODE 	0
@@ -118,5 +120,6 @@
 int32_t lora_init(void);
 int32_t lora_test_transmit(void);
 int32_t lora_test_receive(void);
+void lora_TX_complete_cb(void);
 
 #endif /* SX1278_H_ */

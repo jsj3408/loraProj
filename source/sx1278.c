@@ -76,7 +76,11 @@ int32_t lora_test_transmit(void)
 	(void) spi_transfer(SPI_Write, REG_MODEMCONFIG2, data, 1, NULL);
 	//write preamble length to 0x50
 	data[0] = 0x50;
-	(void) spi_transfer(SPI_Write, REG_PREAMBLE_LSB, data, 1, NULL);
+	(void) spi_transfer(SPI_Write, REG_PREAMBLE_LSB, data, 1, NULL);\
+	//set DIO0 to trigger interrupt when TXDone
+		//DIO0-DIO1-DIO2-DIO3 (2bits per DIO)
+	data[0] = 0b01000000;
+	(void) spi_transfer(SPI_Write, REG_DIOMAPPING1, data, 1, NULL);
 
 	/*change mode to STANDBY!**/
 	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
@@ -105,41 +109,30 @@ int32_t lora_test_transmit(void)
 	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
 				SET_VAL(TRANSMIT_MODE, DEVICEMODE_SHIFT, DEVICEMODE_BITLEN);
 	(void) spi_transfer(SPI_Write, REG_OPMODE, data, 1, NULL);
-	//now wait for the TX_interrupt to be issued
-	data[0] = 0;
-	volatile int retry = 10;
 	GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
 	GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
-	while((retry-- > 0) && ((data[0] & (0b00001000)) != 0b00001000))
-	{
-		data[0] = 0;
-		(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
-		DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
-		SysTick_DelayTicks(1000U);
-	}
-	GPIO_SetPinsOutput(GPIOB, 0x01 << 18);
-	GPIO_SetPinsOutput(GPIOB, 0x01 << 19);
-	if(retry < 1)
-	{
-		DB_PRINT(1, "Retries failed and no TX related interrupt has been raised!");
-		GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
-	}
-	else
-	{
-		DB_PRINT(1, "If you are here the TX Done interrupt has been raised!");
-		GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
-	}
-
-	//TODO: Configure preamble length later (in TX and RX) and check what this is. Write IRQ mask also
-
-//	//read back the data to verify
-//	(void) spi_transfer(SPI_Read, REG_OPMODE, NULL, 1, data);
-//		DB_PRINT(1, "LongRangeMode:%hu, AccessSharedReg:%hu, LowfreqModeOn:%hu,"
-//				" CurrentMode:%hu",
-//				GET_VAL(data[0], LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN),
-//				GET_VAL(data[0], ACCSHAREDREG_SHIFT, ACCSHAREDREG_BITLEN),
-//				GET_VAL(data[0], LOWFREQMODEON_SHIFT, LOWFREQMODEON_BITLEN),
-//				GET_VAL(data[0], DEVICEMODE_SHIFT, DEVICEMODE_BITLEN));
+	//now wait for the TX_interrupt to be issued
+//	data[0] = 0;
+//	volatile int retry = 10;
+//	while((retry-- > 0) && ((data[0] & (0b00001000)) != 0b00001000))
+//	{
+//		data[0] = 0;
+//		(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
+//		DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
+//		SysTick_DelayTicks(1000U);
+//	}
+//	GPIO_SetPinsOutput(GPIOB, 0x01 << 18);
+//	GPIO_SetPinsOutput(GPIOB, 0x01 << 19);
+//	if(retry < 1)
+//	{
+//		DB_PRINT(1, "Retries failed and no TX related interrupt has been raised!");
+//		GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
+//	}
+//	else
+//	{
+//		DB_PRINT(1, "If you are here the TX Done interrupt has been raised!");
+//		GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
+//	}
 
 	return 1;
 }
@@ -262,5 +255,24 @@ int32_t lora_test_receive(void)
 		//read one byte at a time; and so allow the AddrPtr to increment
 		(void) spi_transfer(SPI_Read, REG_FIFO, NULL, 1, (RX_buffer + j));
 		DB_PRINT(1, "Data:%d - %c", j, RX_buffer[j]);
+	}
+	return 1;
+}
+
+void lora_TX_complete_cb(void)
+{
+	uint8_t data[2] = {0};
+	(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
+	DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
+	GPIO_SetPinsOutput(GPIOB, 0x01 << 18);
+	GPIO_SetPinsOutput(GPIOB, 0x01 << 19);
+	if((data[0] & 0b00001000) == 0b00001000)
+	{
+//		DB_PRINT(1, "If you are here the TX Done interrupt has been raised!");
+		GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
+	}
+	else
+	{
+		GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
 	}
 }

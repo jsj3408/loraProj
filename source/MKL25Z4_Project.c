@@ -48,8 +48,8 @@
 //#define USE_I2C
 //#define GPIO_TOGGLE
 #define USE_SPI
-//#define LORA_TX
-#define LORA_RX
+#define LORA_TX
+//#define LORA_RX
 //#define LED_TEST
 /*
  * @brief   Application entry point.
@@ -68,6 +68,7 @@
 *********************************************************************************************************************/
 uint8_t status;
 status_t result = kStatus_Success;
+bool tx_interrupt_issued = false;
 
 /**********************************************************************************************************************
 * Local function declaration section
@@ -83,6 +84,7 @@ int main(void)
 
     //status_t result = 1;
     uint8_t ret = 0;
+
 
     uint8_t loraAddr[] = {0x01, 0x0D, 0x10, 0x18};
     //each read operation will require two bytes of output
@@ -118,6 +120,13 @@ int main(void)
     	lora_init();
 #ifdef LORA_TX
     	lora_test_transmit();
+    	while(tx_interrupt_issued == false)
+    	{
+    		DB_PRINT(1, "waiting for TX interrupt");
+    		SysTick_DelayTicks(500U);
+    	}
+    	//if we are here, means an interrupt is issued
+//		lora_TX_complete_cb();
 #endif
 #ifdef LORA_RX
     	lora_test_receive();
@@ -162,7 +171,19 @@ int main(void)
     return 0 ;
 }
 
-
+void PORTD_IRQHandler(void)
+{
+	if((PORTD->PCR[5] & PORT_PCR_ISF_MASK) != 0)
+	{
+		GPIO_ClearPinsOutput(GPIOD, 0x01 << 5);
+		//set it back to 0
+		//PORTD->PCR[5] = (PORTD->PCR[5] & ~PORT_PCR_ISF_MASK) | PORT_PCR_ISF(1);
+		PORTD->ISFR = 0xFFFFFFFF;
+		//temporarily set a variable that tells TX is complete
+		tx_interrupt_issued = true;
+		lora_TX_complete_cb();
+	}
+}
 
 /**
  * TODO: Change the location of this function later
@@ -209,13 +230,22 @@ static void KL_InitPins(void)
 	*/
 	//use PORTD to enable SPI0 comms
 	CLOCK_EnableClock(kCLOCK_PortD);
-	//enable the SS/CS as GPIO only, the rest as i2c.
+	//enable the SS/CS as GPIO only, the rest as SPI.
 	PORT_SetPinMux(PORTD, 0U, kPORT_MuxAsGpio);
 	GPIO_PinInit(GPIOD, 0U, &output_config);
 	//PORT_SetPinMux(PORTD, 0U, kPORT_MuxAlt2);
 	PORT_SetPinMux(PORTD, 1U, kPORT_MuxAlt2);
 	PORT_SetPinMux(PORTD, 2U, kPORT_MuxAlt2);
 	PORT_SetPinMux(PORTD, 3U, kPORT_MuxAlt2);
+
+	port_interrupt_t extern_interrupt =
+	{
+		kPORT_InterruptLogicOne,
+	};
+	//enable PTD5 as TX/RX interrupt
+	PORT_SetPinMux(PORTD, 5U, kPORT_MuxAsGpio);
+	PORT_SetPinInterruptConfig(PORTD, 5, extern_interrupt);
+	EnableIRQ(PORTD_IRQn);
 
 	//enable clock for PortB to toggle on board LEDs
 	CLOCK_EnableClock(kCLOCK_PortB);
