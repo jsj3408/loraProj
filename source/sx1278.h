@@ -54,6 +54,9 @@
 //LORA register addresses
 #define REG_FIFO			0x00
 #define REG_OPMODE			0x01
+#define REG_FR_MSB			0x06
+#define REG_FR_MID			0x07
+#define REG_FR_LSB			0x08
 #define REG_MODEMCONFIG1	0x1D
 #define REG_MODEMCONFIG2	0x1E
 #define REG_FIFOADDRPTR		0x0D
@@ -106,7 +109,12 @@
 /**********************************************************************************************************************
 * Typedef section
 *********************************************************************************************************************/
-
+typedef struct
+{
+	uint8_t FrMSB;
+	uint8_t FrMID;
+	uint8_t FrLSB;
+}RegFrData;
 /**********************************************************************************************************************
 * Enum section
 *********************************************************************************************************************/
@@ -118,5 +126,6 @@
 int32_t lora_init(void);
 int32_t lora_test_transmit(void);
 int32_t lora_test_receive(void);
+void lora_calculateRegFrequency(uint32_t carrierFreq, uint32_t oscFreq, RegFrData * outputFreq);
 
 #endif /* SX1278_H_ */

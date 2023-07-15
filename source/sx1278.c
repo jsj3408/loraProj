@@ -18,6 +18,12 @@
 *********************************************************************************************************************/
 #define READ_REGS	0
 #define WRITE_REGS	0
+#define CRYSTAL_OSC_FREQ 	32	//in MHz
+#define CARRIER_FREQ		868 //in MHz
+
+/**********************************************************************************************************************
+* Local typedef section
+*********************************************************************************************************************/
 
 /**********************************************************************************************************************
 * Global variable
@@ -32,11 +38,20 @@ int32_t lora_init(void)
 	return 1;
 }
 
+void lora_calculateRegFrequency(uint32_t carrierFreq, uint32_t oscFreq, RegFrData * outputFreq)
+{
+	uint32_t output = round((carrierFreq * (1 << 19)) / oscFreq);
+	outputFreq->FrLSB = output & 0xFF;
+	outputFreq->FrMID = (output & 0xFF00) >> 8;
+	outputFreq->FrMSB = (output & 0xFF0000) >> 16;
+	DB_PRINT(1, "Output Reg freq is %d", output);
+}
 
 int32_t lora_test_transmit(void)
 {
 	//each SPI read operation requires two bytes of output (put for safety)
 	uint8_t data[2] = {0};
+	RegFrData regFreq = {0};
 	char test_payload[] = "This is a Test Payload.";
 	//this payload should exclude null character
 	uint8_t payload_len = sizeof(test_payload) - 1;
@@ -77,6 +92,11 @@ int32_t lora_test_transmit(void)
 	//write preamble length to 0x50
 	data[0] = 0x50;
 	(void) spi_transfer(SPI_Write, REG_PREAMBLE_LSB, data, 1, NULL);
+	//write the required carrier frequency into the LORA register
+	lora_calculateRegFrequency(CARRIER_FREQ, CRYSTAL_OSC_FREQ, &regFreq);
+	(void) spi_transfer(SPI_Write, REG_FR_MSB, &(regFreq.FrMSB), 1, NULL);
+	(void) spi_transfer(SPI_Write, REG_FR_MID, &(regFreq.FrMID), 1, NULL);
+	(void) spi_transfer(SPI_Write, REG_FR_LSB, &(regFreq.FrLSB), 1, NULL);
 
 	/*change mode to STANDBY!**/
 	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
@@ -148,6 +168,7 @@ int32_t lora_test_receive(void)
 {
 	//each SPI read operation requires two bytes of output (put for safety)
 	uint8_t data[2] = {0};
+	RegFrData regFreq = {0};
 	uint8_t RX_interrupt_val = 0;
 	uint8_t payload_len = 0;
 	uint8_t RX_curr_Address = 0;
@@ -206,6 +227,11 @@ int32_t lora_test_receive(void)
 			SET_VAL(EXPL_HEADER, IMPLHEADERMODEON_SHIFT, IMPLHEADERMODEON_BITLEN);
 	DB_PRINT(1, "New value written in REG_MODEMCONFIG1 is:%hu", data[0]);
 	(void) spi_transfer(SPI_Write, REG_MODEMCONFIG1, data, 1, NULL);
+	//write the required carrier frequency into the LORA register
+	lora_calculateRegFrequency(CARRIER_FREQ, CRYSTAL_OSC_FREQ, &regFreq);
+	(void) spi_transfer(SPI_Write, REG_FR_MSB, &(regFreq.FrMSB), 1, NULL);
+	(void) spi_transfer(SPI_Write, REG_FR_MID, &(regFreq.FrMID), 1, NULL);
+	(void) spi_transfer(SPI_Write, REG_FR_LSB, &(regFreq.FrLSB), 1, NULL);
 
 	//now start the receive operation
 	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
