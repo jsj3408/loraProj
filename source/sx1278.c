@@ -199,6 +199,10 @@ int32_t lora_test_receive(void)
 			SET_VAL(EXPL_HEADER, IMPLHEADERMODEON_SHIFT, IMPLHEADERMODEON_BITLEN);
 	DB_PRINT(1, "New value written in REG_MODEMCONFIG1 is:%hu", data[0]);
 	(void) spi_transfer(SPI_Write, REG_MODEMCONFIG1, data, 1, NULL);
+	//set DIO0 to trigger interrupt when RXDone (value 00 when RXDone)
+		//DIO0-DIO1-DIO2-DIO3 (2bits per DIO)
+	data[0] = 0b00000000;
+	(void) spi_transfer(SPI_Write, REG_DIOMAPPING1, data, 1, NULL);
 
 	//now start the receive operation
 	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
@@ -213,30 +217,93 @@ int32_t lora_test_receive(void)
 	volatile int retry = 600;
 	GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
 	GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
-	while((retry-- > 0) && ((data[0] & RX_interrupt_val) == 0)) //loop as long as we dont have any of these bits set
-	{
-		data[0] = 0;
-		(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
-		DB_PRINT(1, "Retry: %d, Value in REG_IRQFLAGS is:%hu", retry, data[0]);
-		SysTick_DelayTicks(1000U);
-	}
+//	while((retry-- > 0) && ((data[0] & RX_interrupt_val) == 0)) //loop as long as we dont have any of these bits set
+//	{
+//		data[0] = 0;
+//		(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
+//		DB_PRINT(1, "Retry: %d, Value in REG_IRQFLAGS is:%hu", retry, data[0]);
+//		SysTick_DelayTicks(1000U);
+//	}
+//	GPIO_SetPinsOutput(GPIOB, 0x01 << 18);
+//	GPIO_SetPinsOutput(GPIOB, 0x01 << 19);
+//	if(retry < 1)
+//	{
+//		DB_PRINT(1, "Retries failed and no RX related interrupt has been raised!");
+//		GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
+//		return 1;
+//	}
+//	else
+//	{
+//		DB_PRINT(1, "Some RX related interrupt has been raised!");
+//		GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
+//	}
+//	//if the RX done bit was set,
+//	if((data[0] & SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN)) == 0)
+//	{
+//		return 1;
+//	}
+//	(void) spi_transfer(SPI_Read, REG_FIFOADDRPTR, NULL, 1, data);
+//	DB_PRINT(1, "Value in REG_FIFOADDRPTR is:%hu", data[0]);
+//	(void) spi_transfer(SPI_Read, REG_RX_NB_BYTES, NULL, 1, data);
+//	DB_PRINT(1, "Value in REG_RX_NB_BYTES is:%hu", data[0]);
+//	payload_len = data[0];
+//	(void) spi_transfer(SPI_Read, REG_FIFORXCURRADDR, NULL, 1, data);
+//	DB_PRINT(1, "Value in REG_FIFORXCURRADDR is:%hu", data[0]);
+//	RX_curr_Address = data[0];
+//	(void) spi_transfer(SPI_Read, REG_FIFORXBYTEADDR, NULL, 1, data);
+//	DB_PRINT(1, "Value in REG_FIFORXBYTEADDR is:%hu", data[0]);
+//	//set the FifoAddrPtr to the RXCurrentAddress
+//	(void) spi_transfer(SPI_Write, REG_FIFOADDRPTR, &RX_curr_Address, 1, NULL);
+//	for(int j = 0; j < payload_len; j++)
+//	{
+//		//read one byte at a time; and so allow the AddrPtr to increment
+//		(void) spi_transfer(SPI_Read, REG_FIFO, NULL, 1, (RX_buffer + j));
+//		DB_PRINT(1, "Data:%d - %c", j, RX_buffer[j]);
+//	}
+//	return 1;
+}
+
+void lora_TX_complete_cb(void)
+{
+	uint8_t data[2] = {0};
+	(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
+	DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
+	//clear this flag in the register
+	data[0] = SET_VAL(1, IRQFLAG_TXDONE, IRQFLAG_BITLEN);
+	(void) spi_transfer(SPI_Write, REG_IRQFLAGS, data, 1, NULL);
 	GPIO_SetPinsOutput(GPIOB, 0x01 << 18);
 	GPIO_SetPinsOutput(GPIOB, 0x01 << 19);
-	if(retry < 1)
+	if((data[0] & 0b00001000) == 0b00001000)
 	{
-		DB_PRINT(1, "Retries failed and no RX related interrupt has been raised!");
+//		DB_PRINT(1, "If you are here the TX Done interrupt has been raised!");
+		GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
+	}
+	else
+	{
+		GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
+	}
+}
+
+void lora_RX_response_cb(void)
+{
+	uint8_t data[2] = {0};
+	(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
+	DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
+	//clear these flags in the register
+	data[0] = SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN);
+	(void) spi_transfer(SPI_Write, REG_IRQFLAGS, data, 1, NULL);
+	GPIO_SetPinsOutput(GPIOB, 0x01 << 18);
+	GPIO_SetPinsOutput(GPIOB, 0x01 << 19);
+	//if the RX done bit was not set return!
+	if((data[0] & SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN)) == 0)
+	{
+		DB_PRINT(1,"RX bit was not set. Returning....");
 		GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
 		return 1;
 	}
 	else
 	{
-		DB_PRINT(1, "Some RX related interrupt has been raised!");
 		GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
-	}
-	//if the RX done bit was set,
-	if((data[0] & SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN)) == 0)
-	{
-		return 1;
 	}
 	(void) spi_transfer(SPI_Read, REG_FIFOADDRPTR, NULL, 1, data);
 	DB_PRINT(1, "Value in REG_FIFOADDRPTR is:%hu", data[0]);
@@ -257,22 +324,4 @@ int32_t lora_test_receive(void)
 		DB_PRINT(1, "Data:%d - %c", j, RX_buffer[j]);
 	}
 	return 1;
-}
-
-void lora_TX_complete_cb(void)
-{
-	uint8_t data[2] = {0};
-	(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
-	DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
-	GPIO_SetPinsOutput(GPIOB, 0x01 << 18);
-	GPIO_SetPinsOutput(GPIOB, 0x01 << 19);
-	if((data[0] & 0b00001000) == 0b00001000)
-	{
-//		DB_PRINT(1, "If you are here the TX Done interrupt has been raised!");
-		GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
-	}
-	else
-	{
-		GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
-	}
 }

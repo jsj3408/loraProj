@@ -121,5 +121,6 @@ int32_t lora_init(void);
 int32_t lora_test_transmit(void);
 int32_t lora_test_receive(void);
 void lora_TX_complete_cb(void);
+void lora_RX_response_cb(void);
 
 #endif /* SX1278_H_ */
