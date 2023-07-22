@@ -45,11 +45,10 @@
 * Defines section
 *********************************************************************************************************************/
 
-//#define USE_I2C
-//#define GPIO_TOGGLE
+
 #define USE_SPI
-#define LORA_TX
-//#define LORA_RX
+//#define LORA_TX
+#define LORA_RX
 //#define LED_TEST
 /*
  * @brief   Application entry point.
@@ -73,46 +72,91 @@ bool interrupt_issued = false;
 * Local function declaration section
 *********************************************************************************************************************/
 static void KL_InitPins(void);
-
+static void LoraPOCTestFunction(void);
 /**********************************************************************************************************************
 * Global function definition
 *********************************************************************************************************************/
-
+/*******************************************************************************
+ * @fn         main
+ *
+ * @brief      The function that is called at Startup
+ *
+ * @param[in]  void
+ *
+ * @return     int
+ *
+******************************************************************************/
 int main(void)
 {
+	LoraPOCTestFunction();
+    return 0;
+}
 
+/*******************************************************************************
+ * @fn         PORTD_IRQHandler
+ *
+ * @brief      This is the CB function triggered when an Interrupt occurs on PTD.
+ * 				It first switches off the Interrupt by writinh into ISFR and then
+ * 				calls the necessary function to respond to the interrupt
+ *
+ * @param[in]  void
+ *
+ * @return     void
+ *
+******************************************************************************/
+void PORTD_IRQHandler(void)
+{
+	if((PORTD->PCR[5] & PORT_PCR_ISF_MASK) != 0)
+	{
+		//set it back to 0
+		//PORTD->PCR[5] = (PORTD->PCR[5] & ~PORT_PCR_ISF_MASK) | PORT_PCR_ISF(1);
+		PORTD->ISFR = 0xFFFFFFFF;
+#ifdef LORA_TX
+		lora_TX_complete_cb();
+#endif
+
+#ifdef LORA_RX
+		lora_RX_response_cb();
+#endif
+		//temporarily set a variable that tells TX is complete
+		interrupt_issued = true;
+	}
+}
+
+
+/**********************************************************************************************************************
+* Local function definition section
+*********************************************************************************************************************/
+/*******************************************************************************
+ * @fn         LoraPOCTestFunction
+ *
+ * @brief      This function tests the functionality of two LORA modules powered
+ * 				by two FRDM-KL25 MCUs, one acting as the transmitter and another
+ * 				as a receiver.
+ * 				Two FW builds need to be done for TX and RX.
+ * 				Enable macro LORA_TX and disable macro LORA_RX for FW to be
+ * 				flashed into one MCU acting as a TX. Enable macro LORA_RX and
+ * 				disable LORA_TX and create the build to be flashed into another
+ * 				MCU acting as receiver.
+ * 				When TX is done, the white LED will turn to blue and when RX is
+ * 				received the white LED will turn to blue or otherwise remain white.
+ *
+ * @param[in]  void
+ *
+ * @return     void
+ *
+******************************************************************************/
+static void LoraPOCTestFunction(void)
+{
     //status_t result = 1;
     uint8_t ret = 0;
-
-
     uint8_t loraAddr[] = {0x01, 0x0D, 0x10, 0x18};
     //each read operation will require two bytes of output
     uint8_t loraData[10] = {0};
-    /* Set systick reload value to generate 1ms interrupt */
-    if (SysTick_Config(SystemCoreClock / 1000U))
-    {
-        while (1)
-        {
-        }
-    }
-	//SIM_SCGC5 = SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTB_MASK | SIM_SCGC5_PORTC_MASK | SIM_SCGC5_PORTD_MASK | SIM_SCGC5_PORTE_MASK;
+
     /* Init board hardware. */
 	KL_InitPins(); //Initializing pins
     printf("i2c/SPI pins and GPIO pins initialized...I hope\n");
-
-    /*BOARD_InitBootPins();
-    BOARD_InitBootClocks();
-    BOARD_InitBootPeripherals();*/
-//#ifndef BOARD_INIT_DEBUG_CONSOLE_PERIPHERAL
-    /* Init FSL debug console. */
-//    BOARD_InitDebugConsole();
-//#endif
-/*
- * The below macro was used to test SPI on the BMP280.
- * The purpose is served, and hence I am removing it
- * */
-
-#ifdef USE_SPI
     ret = spi_init();
     if(ret)
     {
@@ -133,85 +177,24 @@ int main(void)
     		SysTick_DelayTicks(500U);
     	}
 #endif
-//    	for(int j=0; j < sizeof(loraAddr); j++)
-//    	{
-//    		ret = spi_transfer(SPI_Read, loraAddr[j], NULL, 1, &(loraData[2*j]));
-//    		printf("ret value of SPI transfer:%d, Addr:0x%x data:0x%x\n",
-//					ret, loraAddr[j], loraData[2*j]);
-//    		if(0x01 == loraAddr[j])
-//    		{
-//    			printf("Mode is:%hu, LowFreqModeOn val:%hu\n",
-//    					LongRangeMode(loraData[2*j]),
-//    					LowFreqModeOn(loraData[2*j]));
-//    		}
-//    	}
-//    	ret = spi_transfer(SPI_Read, *chip_addr, NULL, 2, chip_id_read);
-//    	printf("ret value of SPI transfer:%d, data:%x\n", ret, chip_id_read[1]);
     }
-#endif
-
-
-#ifdef GPIO_TOGGLE
-    while (retry--)
-    {
-    	SysTick_DelayTicks(1000U);
-    	printf("Toggling...\n");
-    	GPIO_TogglePinsOutput(GPIOE, 0x40000000); //toggling PTE30. bit30 is enabled
-    }
-#endif
-    printf("Hello World\n");
-
-    /* Force the counter to be placed into memory. */
-//    volatile static int i = 0 ;
-    /* Enter an infinite loop, just incrementing a counter. */
-//    while(1) {
-//        i++ ;
-        /* 'Dummy' NOP to allow source level single stepping of
-            tight while() loop */
-//        __asm volatile ("nop");
-//    }
-    return 0 ;
+    printf("***************End of program execution**************");
 }
 
-void PORTD_IRQHandler(void)
-{
-	if((PORTD->PCR[5] & PORT_PCR_ISF_MASK) != 0)
-	{
-		//set it back to 0
-		//PORTD->PCR[5] = (PORTD->PCR[5] & ~PORT_PCR_ISF_MASK) | PORT_PCR_ISF(1);
-		PORTD->ISFR = 0xFFFFFFFF;
-#ifdef LORA_TX
-		lora_TX_complete_cb();
-#endif
-#ifdef LORA_RX
-		lora_RX_response_cb();
-#endif
-		//temporarily set a variable that tells TX is complete
-		interrupt_issued = true;
-	}
-}
-
-/**
- * TODO: Change the location of this function later
- * */
+/*******************************************************************************
+ * @fn         KL_InitPins
+ *
+ * @brief      This function initializes all the GPIO pins and activates all the
+ * 				Port Gate clocks
+ *
+ * @param[in]  void
+ *
+ * @return     void
+ *
+******************************************************************************/
 static void KL_InitPins(void)
 {
-
-	//enabling clock for only PortE for I2C communication and GPIO use
 	CLOCK_EnableClock(kCLOCK_PortE);
-	port_pin_config_t config =
-		{
-			kPORT_PullUp,
-		    kPORT_FastSlewRate,
-		    kPORT_PassiveFilterDisable,
-		    kPORT_OpenDrainEnable,
-		    kPORT_LowDriveStrength,
-			kPORT_MuxAlt6,
-		    0,
-		};
-	PORT_SetPinConfig(PORTE, 0U, &config);
-	PORT_SetPinConfig(PORTE, 1U, &config);
-
 	gpio_pin_config_t output_config =
 	{
 			kGPIO_DigitalOutput,

@@ -134,14 +134,13 @@ halLoraRet_t halLoraConfigTX(void)
 	return halLoraSuccess;
 }
 
-halLoraRet_t halLoraTransmit(uint8_t * payload_data, uint32_t payload_len)
+halLoraRet_t halLoraTransmit(uint8_t * payload_data, uint8_t payload_len)
 {
 	uint8_t data[2] = {0};
 	if((payload_len == 0) || (payload_data == NULL))
 	{
 		return halLoraInvalidArgs;
 	}
-	payload_len = (payload_len > 0xFF) ? 0xFF : payload_len;
 	/*change mode to STANDBY!**/
 	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
 				SET_VAL(STANDBY_MODE, DEVICEMODE_SHIFT, DEVICEMODE_BITLEN);
@@ -280,4 +279,24 @@ halLoraRet_t halLoraReceive(uint8_t * RX_buffer, uint8_t payload_len)
 		DB_PRINT(1, "Data:%d - %c", j, RX_buffer[j]);
 	}
 	return halLoraSuccess;
+}
+
+void halLoraTXCompleteCB(void)
+{
+	uint8_t data[2] = {0};
+	(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
+	DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
+	//clear this flag in the register
+	data[0] = SET_VAL(1, IRQFLAG_TXDONE, IRQFLAG_BITLEN);
+	(void) spi_transfer(SPI_Write, REG_IRQFLAGS, data, 1, NULL);
+}
+
+void halLoraRXPayloadCB(void)
+{
+	uint8_t data[2] = {0};
+	(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
+	DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
+	//clear these flags in the register
+	data[0] = SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN);
+	(void) spi_transfer(SPI_Write, REG_IRQFLAGS, data, 1, NULL);
 }
