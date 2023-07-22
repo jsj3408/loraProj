@@ -139,12 +139,9 @@ int32_t lora_test_transmit(void)
 
 int32_t lora_test_receive(void)
 {
+	uint8_t RX_interrupt_val = 0;
 	//each SPI read operation requires two bytes of output (put for safety)
 	uint8_t data[2] = {0};
-	uint8_t RX_interrupt_val = 0;
-	uint8_t payload_len = 0;
-	uint8_t RX_curr_Address = 0;
-	uint8_t RX_buffer[256] = {0}; //since LORA buffer is 256Bytes, I allocate this much space
 	//make sure OpMode is in sleep mode = 0
 	(void) spi_transfer(SPI_Read, REG_OPMODE, NULL, 1, data);
 	DB_PRINT(1, "Value in REG_OPMODE is:%hu", data[0]);
@@ -213,8 +210,6 @@ int32_t lora_test_receive(void)
 	RX_interrupt_val = SET_VAL(1, IRQFLAG_RXTIMEOUT, IRQFLAG_BITLEN) |
 			SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN);
 			//| SET_VAL(1, IRQFLAG_VALIDHEAD, IRQFLAG_BITLEN);
-	// 1min
-	volatile int retry = 600;
 	GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
 	GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
 //	while((retry-- > 0) && ((data[0] & RX_interrupt_val) == 0)) //loop as long as we dont have any of these bits set
@@ -286,6 +281,9 @@ void lora_TX_complete_cb(void)
 
 void lora_RX_response_cb(void)
 {
+	uint8_t payload_len = 0;
+	uint8_t RX_curr_Address = 0;
+	uint8_t RX_buffer[256] = {0}; //since LORA buffer is 256Bytes, I allocate this much space
 	uint8_t data[2] = {0};
 	(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
 	DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
