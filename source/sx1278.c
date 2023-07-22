@@ -281,7 +281,7 @@ int32_t lora_test_receive(void)
 //		(void) spi_transfer(SPI_Read, REG_FIFO, NULL, 1, (RX_buffer + j));
 //		DB_PRINT(1, "Data:%d - %c", j, RX_buffer[j]);
 //	}
-//	return 1;
+	return 1;
 }
 
 void lora_TX_complete_cb(void)
@@ -323,7 +323,7 @@ void lora_RX_response_cb(void)
 	{
 		DB_PRINT(1,"RX bit was not set. Returning....");
 		GPIO_ClearPinsOutput(GPIOB, 0x01 << 18);
-		return 1;
+		return;
 	}
 	else
 	{
