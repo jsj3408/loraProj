@@ -18,7 +18,7 @@
 #define READ_REGS	0
 #define WRITE_REGS	0
 #define CRYSTAL_OSC_FREQ 	32	//in MHz
-#define CARRIER_FREQ		868 //in MHz
+#define CARRIER_FREQ		434 //in MHz
 
 /**********************************************************************************************************************
 * Local typedef section
