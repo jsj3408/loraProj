@@ -47,8 +47,8 @@
 
 
 #define USE_SPI
-//#define LORA_TX
-#define LORA_RX
+#define LORA_TX
+//#define LORA_RX
 //#define LED_TEST
 /*
  * @brief   Application entry point.
@@ -68,11 +68,17 @@
 uint8_t status;
 status_t result = kStatus_Success;
 bool interrupt_issued = false;
+
+TaskHandle_t * handle = NULL;
+
+extern uint32_t SystemCoreClock;
+static void sampleTask(void * args);
 /**********************************************************************************************************************
 * Local function declaration section
 *********************************************************************************************************************/
 static void KL_InitPins(void);
 static void LoraPOCTestFunction(void);
+static void ConfigureSystemClock(void);
 /**********************************************************************************************************************
 * Global function definition
 *********************************************************************************************************************/
@@ -88,10 +94,29 @@ static void LoraPOCTestFunction(void);
 ******************************************************************************/
 int main(void)
 {
-	LoraPOCTestFunction();
+	ConfigureSystemClock();
+	if(pdFALSE == xTaskCreate(sampleTask, "SAMPLE", configMINIMAL_STACK_SIZE, NULL, 1,
+			handle))
+	{
+		DB_PRINT(1, "Starting task failed!");
+	}
+	else
+	{
+		vTaskStartScheduler();
+	}
+	//LoraPOCTestFunction();
     return 0;
 }
 
+
+static void sampleTask(void * args)
+{
+	for(;;)
+	{
+		DB_PRINT(1, "You are officially running this task!");
+		vTaskDelay(pdMS_TO_TICKS(1000));
+	}
+}
 /*******************************************************************************
  * @fn         PORTD_IRQHandler
  *
@@ -166,7 +191,7 @@ static void LoraPOCTestFunction(void)
     	while(interrupt_issued == false)
     	{
     		DB_PRINT(1, "waiting for TX interrupt");
-    		SysTick_DelayTicks(500U);
+//    		SysTick_DelayTicks(500U);
     	}
 #endif
 #ifdef LORA_RX
@@ -174,7 +199,7 @@ static void LoraPOCTestFunction(void)
     	while(interrupt_issued == false)
     	{
     		DB_PRINT(1, "waiting for RX interrupt");
-    		SysTick_DelayTicks(500U);
+//    		SysTick_DelayTicks(500U);
     	}
 #endif
     }
@@ -246,4 +271,20 @@ static void KL_InitPins(void)
 	GPIO_PinInit(GPIOB, 18U, &output_config_LED);
 	GPIO_PinInit(GPIOB, 19U, &output_config_LED);
 
+}
+
+
+static void ConfigureSystemClock(void)
+{
+	//select FLL/PLL
+	MCG->C1 |= MCG_C1_CLKS(0);
+	//select the slow option
+	MCG->C1 |= MCG_C1_IREFS(1);
+	//here we want to select options that give us 48MHz output
+	MCG->C4 |= MCG_C4_DRST_DRS(1);
+	MCG->C4 |= MCG_C4_DMX32(1);
+	//divide by 16 to get 3MHz.
+	SIM->CLKDIV1 |= SIM_CLKDIV1_OUTDIV1(0b1111);
+	SystemCoreClockUpdate();
+	DB_PRINT(1, "System core clock value is %lu Hz", SystemCoreClock);
 }

@@ -8,7 +8,7 @@
 /**********************************************************************************************************************
 * Includes section
 *********************************************************************************************************************/
-#include "app_config.h"
+#include <app_config.h>
 /**********************************************************************************************************************
 * Local defines section
 *********************************************************************************************************************/
@@ -48,21 +48,21 @@ volatile uint32_t g_systickCounter;
  * @return     uint32_t: return values
  *
 ******************************************************************************/
-void SysTick_Handler(void)
-{
-    if (g_systickCounter != 0U)
-    {
-        g_systickCounter--;
-    }
-}
+//void SysTick_Handler(void)
+//{
+//    if (g_systickCounter != 0U)
+//    {
+//        g_systickCounter--;
+//    }
+//}
 
-void SysTick_DelayTicks(uint32_t n)
-{
-    g_systickCounter = n;
-    while (g_systickCounter != 0U)
-    {
-    }
-}
+//void SysTick_DelayTicks(uint32_t n)
+//{
+//    g_systickCounter = n;
+//    while (g_systickCounter != 0U)
+//    {
+//    }
+//}
 
 /**********************************************************************************************************************
 * Local function definition section
