@@ -17,7 +17,7 @@
 #define READ_REGS	0
 #define WRITE_REGS	0
 #define CRYSTAL_OSC_FREQ 	32	//in MHz
-#define CARRIER_FREQ		868 //in MHz
+#define CARRIER_FREQ		434 //in MHz
 
 /**********************************************************************************************************************
 * Local typedef section
@@ -26,17 +26,17 @@
 /**********************************************************************************************************************
 * Global variable
 *********************************************************************************************************************/
-static halLoraCurrentInfo_t LoraCurrentInfo = {0};
+
 /**********************************************************************************************************************
 * Global function definition
 *********************************************************************************************************************/
-halLoraRet_t halLoraInit(void)
+halLoraRet_t halLoraInit(halLoraCurrentInfo_t * LoraCurrentInfo)
 {
 	uint8_t data[2] = {0};
 	// put OpMode to Sleep and to LORA mode
 	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
 				SET_VAL(SLEEP_MODE, DEVICEMODE_SHIFT, DEVICEMODE_BITLEN);
-	DB_PRINT(1, "New value written in REG_OPMODE is:%hu", data[0]);
+	DB_PRINT(1, "New value to write in REG_OPMODE is:%hu", data[0]);
 	(void) spi_transfer(SPI_Write, REG_OPMODE, data, 1, NULL);
 
 	RegFrData regFreq = {0};
@@ -46,11 +46,11 @@ halLoraRet_t halLoraInit(void)
 	(void) spi_transfer(SPI_Write, REG_FR_MID, &(regFreq.FrMID), 1, NULL);
 	(void) spi_transfer(SPI_Write, REG_FR_LSB, &(regFreq.FrLSB), 1, NULL);
 	//TODO: Add validation checks.
-	LoraCurrentInfo.isInitialized = true;
+	LoraCurrentInfo->isInitialized = true;
 	return halLoraSuccess;
 }
 
-halLoraRet_t halLoraSetMode(halLoraMode_t mode)
+halLoraRet_t halLoraSetMode(halLoraMode_t mode, halLoraCurrentInfo_t * LoraCurrentInfo)
 {
 	halLoraRet_t ret = halLoraSuccess;
 	switch(mode)
@@ -62,7 +62,7 @@ halLoraRet_t halLoraSetMode(halLoraMode_t mode)
 			}
 			else
 			{
-				LoraCurrentInfo.currentMode = halLoraModeTX;
+				LoraCurrentInfo->currentMode = halLoraModeTX;
 			}
 		break;
 
@@ -73,7 +73,7 @@ halLoraRet_t halLoraSetMode(halLoraMode_t mode)
 			}
 			else
 			{
-				LoraCurrentInfo.currentMode = halLoraModeRX;
+				LoraCurrentInfo->currentMode = halLoraModeRX;
 			}
 		break;
 
@@ -233,16 +233,31 @@ halLoraRet_t halLoraConfigRX(void)
 	(void) spi_transfer(SPI_Write, REG_MODEMCONFIG1, data, 1, NULL);
 	//set DIO0 to trigger interrupt when RXDone (value 00 when RXDone)
 		//DIO0-DIO1-DIO2-DIO3 (2bits per DIO)
-	data[0] = 0b00000000;
-	(void) spi_transfer(SPI_Write, REG_DIOMAPPING1, data, 1, NULL);
-	//now start the receive operation
-	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
-				SET_VAL(RX_CONT_MODE, DEVICEMODE_SHIFT, DEVICEMODE_BITLEN);
-	(void) spi_transfer(SPI_Write, REG_OPMODE, data, 1, NULL);
+//	data[0] = 0b00000000;
+//	(void) spi_transfer(SPI_Write, REG_DIOMAPPING1, data, 1, NULL);
 	//TODO: Add validation checks.
 	return halLoraSuccess;
 }
 
+halLoraRet_t halLoraBeginReceiveMode(halLoraCurrentInfo_t * LoraCurrentInfo)
+{
+	uint8_t data[2] = {0};
+	if(LoraCurrentInfo == NULL)
+	{
+		return halLoraInvalidArgs;
+	}
+	if((LoraCurrentInfo->isInitialized == false) || (LoraCurrentInfo->currentMode != halLoraModeRX))
+	{
+		return halLoraFail;
+	}
+	//now start the receive operation
+	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
+				SET_VAL(RX_CONT_MODE, DEVICEMODE_SHIFT, DEVICEMODE_BITLEN);
+	(void) spi_transfer(SPI_Write, REG_OPMODE, data, 1, NULL);
+	//TODO: Add validation checks
+	return halLoraSuccess;
+
+}
 halLoraRet_t halLoraReadNumBytes(uint8_t * numBytes)
 {
 	uint8_t data[2] = {0};
@@ -252,8 +267,13 @@ halLoraRet_t halLoraReadNumBytes(uint8_t * numBytes)
 	return halLoraSuccess;
 }
 
-halLoraRet_t halLoraReceive(uint8_t * RX_buffer, uint8_t payload_len)
-{	//TODO: clean buffer after reading??
+halLoraRet_t halLoraReadData(uint8_t * RX_buffer, uint8_t payload_len)
+{
+	if (payload_len > 256)
+	{
+		return halLoraInvalidArgs;
+	}
+	//TODO: clean buffer after reading??
 	uint8_t data[2] = {0};
 	uint8_t RX_curr_Address = 0;
 	(void) spi_transfer(SPI_Read, REG_FIFOADDRPTR, NULL, 1, data);
@@ -262,7 +282,7 @@ halLoraRet_t halLoraReceive(uint8_t * RX_buffer, uint8_t payload_len)
 	DB_PRINT(1, "Value in REG_RX_NB_BYTES is:%hu", data[0]);
 	if(payload_len > data[0])
 	{
-		//we cant read if requested data is more than what is preset
+		//we cant read if requested data is more than what is present
 		return halLoraInvalidArgs;
 	}
 	(void) spi_transfer(SPI_Read, REG_FIFORXCURRADDR, NULL, 1, data);
@@ -285,7 +305,7 @@ void halLoraTXCompleteCB(void)
 {
 	uint8_t data[2] = {0};
 	(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
-	DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
+//	DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
 	//clear this flag in the register
 	data[0] = SET_VAL(1, IRQFLAG_TXDONE, IRQFLAG_BITLEN);
 	(void) spi_transfer(SPI_Write, REG_IRQFLAGS, data, 1, NULL);
@@ -295,7 +315,7 @@ void halLoraRXPayloadCB(void)
 {
 	uint8_t data[2] = {0};
 	(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
-	DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
+//	DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
 	//clear these flags in the register
 	data[0] = SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN);
 	(void) spi_transfer(SPI_Write, REG_IRQFLAGS, data, 1, NULL);

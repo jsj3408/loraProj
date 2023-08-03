@@ -36,7 +36,7 @@
 * Includes section
 *********************************************************************************************************************/
 #include "MKL25Z4_Project.h"
-
+#include "App_LORA.h"
 /* TODO: insert other include files here. */
 
 /* TODO: insert other definitions and declarations here. */
@@ -72,7 +72,6 @@ bool interrupt_issued = false;
 TaskHandle_t * handle = NULL;
 
 extern uint32_t SystemCoreClock;
-static void sampleTask(void * args);
 /**********************************************************************************************************************
 * Local function declaration section
 *********************************************************************************************************************/
@@ -94,11 +93,23 @@ static void ConfigureSystemClock(void);
 ******************************************************************************/
 int main(void)
 {
+	//setting to 32KHz since we want low power consumption
 	ConfigureSystemClock();
-	if(pdFALSE == xTaskCreate(sampleTask, "SAMPLE", configMINIMAL_STACK_SIZE, NULL, 1,
+	KL_InitPins();
+	if(false == spi_init())
+	{
+		DB_PRINT(1, "Couldn't initialize SPI. exit!");
+		return 0;
+	}
+	if(App_LORA_success != App_LORA_init())
+	{
+		DB_PRINT(1, "Lora Init failed!");
+		return 0;
+	}
+	if(pdFALSE == xTaskCreate(App_LORA_run, "App_LORA_task", configMINIMAL_STACK_SIZE+0x1000, NULL, 1,
 			handle))
 	{
-		DB_PRINT(1, "Starting task failed!");
+		DB_PRINT(1, "Starting LORA task failed!");
 	}
 	else
 	{
@@ -108,45 +119,6 @@ int main(void)
     return 0;
 }
 
-
-static void sampleTask(void * args)
-{
-	for(;;)
-	{
-		DB_PRINT(1, "You are officially running this task!");
-		vTaskDelay(pdMS_TO_TICKS(1000));
-	}
-}
-/*******************************************************************************
- * @fn         PORTD_IRQHandler
- *
- * @brief      This is the CB function triggered when an Interrupt occurs on PTD.
- * 				It first switches off the Interrupt by writinh into ISFR and then
- * 				calls the necessary function to respond to the interrupt
- *
- * @param[in]  void
- *
- * @return     void
- *
-******************************************************************************/
-void PORTD_IRQHandler(void)
-{
-	if((PORTD->PCR[5] & PORT_PCR_ISF_MASK) != 0)
-	{
-		//set it back to 0
-		//PORTD->PCR[5] = (PORTD->PCR[5] & ~PORT_PCR_ISF_MASK) | PORT_PCR_ISF(1);
-		PORTD->ISFR = 0xFFFFFFFF;
-#ifdef LORA_TX
-		lora_TX_complete_cb();
-#endif
-
-#ifdef LORA_RX
-		lora_RX_response_cb();
-#endif
-		//temporarily set a variable that tells TX is complete
-		interrupt_issued = true;
-	}
-}
 
 
 /**********************************************************************************************************************
@@ -219,29 +191,15 @@ static void LoraPOCTestFunction(void)
 ******************************************************************************/
 static void KL_InitPins(void)
 {
-	CLOCK_EnableClock(kCLOCK_PortE);
 	gpio_pin_config_t output_config =
 	{
 			kGPIO_DigitalOutput,
 			0
 	};
-	//since the LED's are common cathode, we drive them Low to turn ON and High to turn OFF
-	gpio_pin_config_t output_config_LED =
+	port_interrupt_t extern_interrupt =
 	{
-			kGPIO_DigitalOutput,
-			1
+		kPORT_InterruptLogicOne,
 	};
-
-	PORT_SetPinMux(PORTE, 30U, kPORT_MuxAsGpio);
-	GPIO_PinInit(GPIOE, 30U, &output_config);
-/*
-	//Enable PortC for SPI communication
-	CLOCK_EnableClock(kCLOCK_PortC);
-	PORT_SetPinMux(PORTC, 4U, kPORT_MuxAlt2);
-	PORT_SetPinMux(PORTC, 5U, kPORT_MuxAlt2);
-	PORT_SetPinMux(PORTC, 6U, kPORT_MuxAlt2);
-	PORT_SetPinMux(PORTC, 7U, kPORT_MuxAlt2);
-	*/
 	//use PORTD to enable SPI0 comms
 	CLOCK_EnableClock(kCLOCK_PortD);
 	//enable the SS/CS as GPIO only, the rest as SPI.
@@ -252,25 +210,10 @@ static void KL_InitPins(void)
 	PORT_SetPinMux(PORTD, 2U, kPORT_MuxAlt2);
 	PORT_SetPinMux(PORTD, 3U, kPORT_MuxAlt2);
 
-	port_interrupt_t extern_interrupt =
-	{
-		kPORT_InterruptLogicOne,
-	};
 	//enable PTD5 as TX/RX interrupt
 	PORT_SetPinMux(PORTD, 5U, kPORT_MuxAsGpio);
 	PORT_SetPinInterruptConfig(PORTD, 5, extern_interrupt);
 	EnableIRQ(PORTD_IRQn);
-
-	//enable clock for PortB to toggle on board LEDs
-	CLOCK_EnableClock(kCLOCK_PortB);
-	//Should be RED LED.
-	PORT_SetPinMux(PORTB, 18U, kPORT_MuxAsGpio);
-	//should be GREEN LED
-	PORT_SetPinMux(PORTB, 19U, kPORT_MuxAsGpio);
-	//set them as outputs
-	GPIO_PinInit(GPIOB, 18U, &output_config_LED);
-	GPIO_PinInit(GPIOB, 19U, &output_config_LED);
-
 }
 
 

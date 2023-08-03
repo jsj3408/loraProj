@@ -10,7 +10,7 @@
 /**********************************************************************************************************************
 * Includes section
 *********************************************************************************************************************/
-#include <ProjConfig/app_config.h>
+#include "app_config.h"
 
 /**********************************************************************************************************************
 * Defines section
@@ -57,13 +57,14 @@ typedef struct
 /**********************************************************************************************************************
 * Function declaration section
 *********************************************************************************************************************/
-halLoraRet_t halLoraInit(void);
-halLoraRet_t halLoraSetMode(halLoraMode_t mode);
+halLoraRet_t halLoraInit(halLoraCurrentInfo_t * LoraCurrentInfo);
+halLoraRet_t halLoraSetMode(halLoraMode_t mode, halLoraCurrentInfo_t * LoraCurrentInfo);
 halLoraRet_t halLoraConfigTX(void);
 halLoraRet_t halLoraConfigRX(void);
 halLoraRet_t halLoraTransmit(uint8_t * payload, uint8_t length);
-halLoraRet_t halLoraReceive(uint8_t * payload, uint8_t length);
+halLoraRet_t halLoraReadData(uint8_t * payload, uint8_t length);
 halLoraRet_t halLoraReadNumBytes(uint8_t * numBytes);
+halLoraRet_t halLoraBeginReceiveMode(halLoraCurrentInfo_t * LoraCurrentInfo);
 halLoraRet_t halLoraGetPacketDiagnostics(packetHealthInfo_t * packetInfo);
 void halLoraTXCompleteCB(void);
 void halLoraRXPayloadCB(void);
