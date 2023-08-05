@@ -87,9 +87,9 @@
 #define configCPU_CLOCK_HZ                      (SystemCoreClock)
 #define configTICK_RATE_HZ                      ((TickType_t)1000)
 #define configMAX_PRIORITIES                    5
-#define configMINIMAL_STACK_SIZE                ((unsigned short)0x80) //IMPORTANT: Stack size is in words, not bytes. Arguments for task creation will task stack depth in words
+#define configMINIMAL_STACK_SIZE                ((unsigned short)100) //IMPORTANT: Stack size is in words, not bytes. Arguments for task creation will task stack depth in words
 #define configMAX_TASK_NAME_LEN                 20
-#define configUSE_16_BIT_TICKS                  0
+#define configUSE_16_BIT_TICKS                  1
 #define configIDLE_SHOULD_YIELD                 1
 #define configUSE_TASK_NOTIFICATIONS            1
 #define configUSE_MUTEXES                       1
@@ -107,7 +107,7 @@
 /* Memory allocation related definitions. */
 #define configSUPPORT_STATIC_ALLOCATION         0
 #define configSUPPORT_DYNAMIC_ALLOCATION        1
-#define configTOTAL_HEAP_SIZE                   ((size_t)(0x2000))
+#define configTOTAL_HEAP_SIZE                   ((size_t)(0x2800))
 #define configAPPLICATION_ALLOCATED_HEAP        0
 
 /* Hook function related definitions. */
@@ -153,6 +153,10 @@
 #define INCLUDE_xTaskAbortDelay                 0
 #define INCLUDE_xTaskGetHandle                  0
 #define INCLUDE_xTaskResumeFromISR              1
+
+/*added by JSJ*/
+#define configRECORD_STACK_HIGH_ADDRESS 1
+
 
 /* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
 standard names. */

@@ -233,8 +233,8 @@ halLoraRet_t halLoraConfigRX(void)
 	(void) spi_transfer(SPI_Write, REG_MODEMCONFIG1, data, 1, NULL);
 	//set DIO0 to trigger interrupt when RXDone (value 00 when RXDone)
 		//DIO0-DIO1-DIO2-DIO3 (2bits per DIO)
-//	data[0] = 0b00000000;
-//	(void) spi_transfer(SPI_Write, REG_DIOMAPPING1, data, 1, NULL);
+	data[0] = 0b00000000;
+	(void) spi_transfer(SPI_Write, REG_DIOMAPPING1, data, 1, NULL);
 	//TODO: Add validation checks.
 	return halLoraSuccess;
 }

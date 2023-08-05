@@ -39,11 +39,10 @@ App_LORA_ret_t App_LORA_init(void)
 		return App_LORA_fail;
 	}
 	//the device must be in RX mode by default
-//	if(halLoraSuccess != halLoraSetMode(halLoraModeRX, &LORA_CurrentStatus))
-//	{
-//		return App_LORA_fail;
-//	}
-	halLoraConfigRX();
+	if(halLoraSuccess != halLoraSetMode(halLoraModeRX, &LORA_CurrentStatus))
+	{
+		return App_LORA_fail;
+	}
 	LORA_EventGroup = xEventGroupCreate();
 	return ret;
 }
@@ -53,12 +52,14 @@ void App_LORA_run(void * args)
 	DB_PRINT(1, "Entered task: %s", __func__);
 	EventBits_t bitSet = 0;
 	uint8_t numBytesRX = 0;
-	halLoraBeginReceiveMode(&LORA_CurrentStatus);
+	if(halLoraSuccess != halLoraBeginReceiveMode(&LORA_CurrentStatus))
+	{
+		DB_PRINT(1, "Unable to begin receive operation!");
+	}
 	for(;;)
 	{
 		DB_PRINT(1, "Task going to sleep");
-		vTaskDelay(1000);
-		bitSet = xEventGroupWaitBits(LORA_EventGroup, TX_BIT | RX_BIT, pdTRUE, pdFALSE, 3000);
+		bitSet = xEventGroupWaitBits(LORA_EventGroup, TX_BIT | RX_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
 		//switch case because we cannot have both RX_BIT and TX_BIT
 		DB_PRINT(1, "Received bitset value: %d", bitSet);
 		switch(bitSet)

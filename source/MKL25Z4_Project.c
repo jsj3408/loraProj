@@ -108,7 +108,7 @@ int main(void)
 		DB_PRINT(1, "Lora Init failed!");
 		return 0;
 	}
-	if(pdFALSE == xTaskCreate(App_LORA_run, "App_LORA_task", configMINIMAL_STACK_SIZE+0x80, NULL, 1,
+	if(pdFALSE == xTaskCreate(App_LORA_run, "App_LORA_task", configMINIMAL_STACK_SIZE+0x300, NULL, 1,
 			handle))
 	{
 		DB_PRINT(1, "Starting LORA task failed!");
