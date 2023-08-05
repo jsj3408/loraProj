@@ -78,6 +78,7 @@ extern uint32_t SystemCoreClock;
 static void KL_InitPins(void);
 static void LoraPOCTestFunction(void);
 static void ConfigureSystemClock(void);
+static void sampleTask(void * args);
 /**********************************************************************************************************************
 * Global function definition
 *********************************************************************************************************************/
@@ -120,6 +121,14 @@ int main(void)
 }
 
 
+//static void sampleTask(void * args)
+//{
+//	for(;;)
+//	{
+//		DB_PRINT(1, "You are officially running this task!");
+//		vTaskDelay(pdMS_TO_TICKS(1000));
+//	}
+//}
 
 /**********************************************************************************************************************
 * Local function definition section

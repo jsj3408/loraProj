@@ -46,12 +46,15 @@ App_LORA_ret_t App_LORA_init(void)
 
 void App_LORA_run(void * args)
 {
+	DB_PRINT(1, "Haiiii");
+	vTaskDelay(1000);
 	EventBits_t bitSet = 0;
 	uint8_t numBytesRX = 0;
 	halLoraBeginReceiveMode(&LORA_CurrentStatus);
 	for(;;)
 	{
 		DB_PRINT(1, "Task going to sleep");
+		vTaskDelay(1000);
 		bitSet = xEventGroupWaitBits(LORA_EventGroup, TX_BIT | RX_BIT, pdTRUE, pdFALSE, 3000);
 		//switch case because we cannot have both RX_BIT and TX_BIT
 		DB_PRINT(1, "Received bitset value: %d", bitSet);
