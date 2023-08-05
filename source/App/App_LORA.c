@@ -46,8 +46,7 @@ App_LORA_ret_t App_LORA_init(void)
 
 void App_LORA_run(void * args)
 {
-	DB_PRINT(1, "Haiiii");
-	vTaskDelay(1000);
+	DB_PRINT(1, "Entered task: %s", __func__);
 	EventBits_t bitSet = 0;
 	uint8_t numBytesRX = 0;
 	halLoraBeginReceiveMode(&LORA_CurrentStatus);
