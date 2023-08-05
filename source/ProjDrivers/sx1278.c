@@ -287,7 +287,7 @@ void lora_TX_complete_cb(void)
 {
 	uint8_t data[2] = {0};
 	(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
-	DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
+	DB_PRINT(1, "%s: Value in REG_IRQFLAGS is:%hu", __func__, data[0]);
 	//clear this flag in the register
 	data[0] = SET_VAL(1, IRQFLAG_TXDONE, IRQFLAG_BITLEN);
 	(void) spi_transfer(SPI_Write, REG_IRQFLAGS, data, 1, NULL);
@@ -311,7 +311,7 @@ void lora_RX_response_cb(void)
 	uint8_t RX_buffer[256] = {0}; //since LORA buffer is 256Bytes, I allocate this much space
 	uint8_t data[2] = {0};
 	(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
-	DB_PRINT(1, "Value in REG_IRQFLAGS is:%hu", data[0]);
+	DB_PRINT(1, "%s: Value in REG_IRQFLAGS is:%hu", __func__, data[0]);
 	//clear these flags in the register
 	data[0] = SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN);
 	(void) spi_transfer(SPI_Write, REG_IRQFLAGS, data, 1, NULL);

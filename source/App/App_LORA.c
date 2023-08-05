@@ -13,6 +13,10 @@
 * Defines section
 *********************************************************************************************************************/
 #define LORA_READBUF_SIZE	256
+
+#ifdef BAREMETAL
+bool interrupt_issued = false;
+#endif
 /**********************************************************************************************************************
 * Local typedef section
 *********************************************************************************************************************/
@@ -93,6 +97,18 @@ void PORTD_IRQHandler(void)
 		//set it back to 0
 		//PORTD->PCR[5] = (PORTD->PCR[5] & ~PORT_PCR_ISF_MASK) | PORT_PCR_ISF(1);
 		PORTD->ISFR = 0xFFFFFFFF;
+
+#ifdef BAREMETAL
+#ifdef LORA_TX
+		lora_TX_complete_cb();
+#endif
+
+#ifdef LORA_RX
+		lora_RX_response_cb();
+#endif
+		//temporarily set a variable that tells TX is complete
+		interrupt_issued = true;
+#else
 		halLoraRXPayloadCB();
 		//temporarily set a variable that tells TX is complete
 		output = xEventGroupSetBitsFromISR(LORA_EventGroup, RX_BIT, &xHigherPriorityTaskWoken);
@@ -100,6 +116,7 @@ void PORTD_IRQHandler(void)
 		{
 			portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 		}
+#endif
 	}
 }
 

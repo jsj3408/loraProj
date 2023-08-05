@@ -47,8 +47,6 @@
 
 
 #define USE_SPI
-#define LORA_TX
-//#define LORA_RX
 //#define LED_TEST
 /*
  * @brief   Application entry point.
@@ -67,7 +65,7 @@
 *********************************************************************************************************************/
 uint8_t status;
 status_t result = kStatus_Success;
-bool interrupt_issued = false;
+extern bool interrupt_issued;
 
 TaskHandle_t * handle = NULL;
 
@@ -94,6 +92,9 @@ static void sampleTask(void * args);
 ******************************************************************************/
 int main(void)
 {
+#ifdef BAREMETAL
+	LoraPOCTestFunction();
+#else
 	//setting to 32KHz since we want low power consumption
 	ConfigureSystemClock();
 	KL_InitPins();
@@ -116,7 +117,7 @@ int main(void)
 	{
 		vTaskStartScheduler();
 	}
-	//LoraPOCTestFunction();
+#endif
     return 0;
 }
 
@@ -223,6 +224,24 @@ static void KL_InitPins(void)
 	PORT_SetPinMux(PORTD, 5U, kPORT_MuxAsGpio);
 	PORT_SetPinInterruptConfig(PORTD, 5, extern_interrupt);
 	EnableIRQ(PORTD_IRQn);
+
+#ifdef BAREMETAL
+	//since the LED's are common cathode, we drive them Low to turn ON and High to turn OFF
+	gpio_pin_config_t output_config_LED =
+	{
+			kGPIO_DigitalOutput,
+			1
+	};
+	//enable clock for PortB to toggle on board LEDs
+	CLOCK_EnableClock(kCLOCK_PortB);
+	//Should be RED LED.
+	PORT_SetPinMux(PORTB, 18U, kPORT_MuxAsGpio);
+	//should be GREEN LED
+	PORT_SetPinMux(PORTB, 19U, kPORT_MuxAsGpio);
+	//set them as outputs
+	GPIO_PinInit(GPIOB, 18U, &output_config_LED);
+	GPIO_PinInit(GPIOB, 19U, &output_config_LED);
+#endif
 }
 
 
