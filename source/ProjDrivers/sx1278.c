@@ -46,6 +46,11 @@ void lora_calculateRegFrequency(uint32_t carrierFreq, uint32_t oscFreq, RegFrDat
 	DB_PRINT(1, "Output Reg freq is %d", output);
 }
 
+void lora_calculatePacketStrength(uint8_t PacketRssi, int8_t PacketSNR, uint32_t carrierFreq)
+{
+
+}
+
 int32_t lora_test_transmit(void)
 {
 	//each SPI read operation requires two bytes of output (put for safety)
@@ -85,7 +90,7 @@ int32_t lora_test_transmit(void)
 	//be careful since I will be writing 0 into the first two LSBits...
 	data[0] = SET_VAL(7, SPREADINGFACTOR_SHIFT, SPREADINGFACTOR_BITLEN) |
 			SET_VAL(TX_SINGLE_MODE, TXCONTINUOUSMODE_SHIFT, TXCONTINUOUSMODE_BITLEN) |
-			SET_VAL(CRC_DISABLE, RXPAYLCRCON_SHIFT, RXPAYLCRCON_BITLEN);
+			SET_VAL(CRC_ENABLE, RXPAYLCRCON_SHIFT, RXPAYLCRCON_BITLEN);
 	DB_PRINT(1, "New value written in REG_MODEMCONFIG2 is:%hu", data[0]);
 	(void) spi_transfer(SPI_Write, REG_MODEMCONFIG2, data, 1, NULL);
 	//write preamble length to 0x50
@@ -310,11 +315,10 @@ void lora_RX_response_cb(void)
 	uint8_t RX_curr_Address = 0;
 	uint8_t RX_buffer[256] = {0}; //since LORA buffer is 256Bytes, I allocate this much space
 	uint8_t data[2] = {0};
+	uint8_t PacketRssi = 0;
+	int8_t PacketSNR = 0;
 	(void) spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
 	DB_PRINT(1, "%s: Value in REG_IRQFLAGS is:%hu", __func__, data[0]);
-	//clear these flags in the register
-	data[0] = SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN);
-	(void) spi_transfer(SPI_Write, REG_IRQFLAGS, data, 1, NULL);
 	GPIO_SetPinsOutput(GPIOB, 0x01 << 18);
 	GPIO_SetPinsOutput(GPIOB, 0x01 << 19);
 	//if the RX done bit was not set return!
@@ -327,6 +331,33 @@ void lora_RX_response_cb(void)
 	else
 	{
 		GPIO_ClearPinsOutput(GPIOB, 0x01 << 19);
+	}
+	/*read the RSSI and SNR here?
+	 * it has to be done in the period between header IRQ and RXDone IRQ*/
+	(void) spi_transfer(SPI_Read, REG_PKTSNRVALUE, NULL, 1, data);
+	DB_PRINT(1, "Value in REG_PKTSNRVALUE is %d", data[0]);
+	(void) spi_transfer(SPI_Read, REG_PKTRSSIVALUE, NULL, 1, data);
+	DB_PRINT(1, "Value in REG_PKTRSSIVALUE is %d", data[0]);
+
+	//clear these flags in the register
+	data[0] = SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN) |
+			 SET_VAL(1, IRQFLAG_VALIDHEAD, IRQFLAG_BITLEN);
+	(void) spi_transfer(SPI_Write, REG_IRQFLAGS, data, 1, NULL);
+	//check if we have CRC.
+	(void) spi_transfer(SPI_Read, REG_HOPCHANNEL, NULL, 1, data);
+	if(GET_VAL(data[0], CRCONPAYLOAD_SHIFT, CRCONPAYLOAD_BITLEN) == CRC_DISABLE)
+	{
+		DB_PRINT(1,"****We don't have CRC at the end of the payload. Data integrity unchecked!!******");
+	}
+	//check if the CRC is good :)
+	spi_transfer(SPI_Read, REG_IRQFLAGS, NULL, 1, data);
+	//if, we have an error in CRC, clean buffer and exit
+	if(GET_VAL(data[0],IRQFLAG_PAYLCRCERR,IRQFLAG_BITLEN) == 1)
+	{
+		data[0] = SET_VAL(1, IRQFLAG_PAYLCRCERR, IRQFLAG_BITLEN);
+		(void) spi_transfer(SPI_Write, REG_IRQFLAGS, data, 1, NULL);
+		//for now just print data is bad
+		DB_PRINT(1, "*******Received Data is BAD!!!****************");
 	}
 	(void) spi_transfer(SPI_Read, REG_FIFOADDRPTR, NULL, 1, data);
 	DB_PRINT(1, "Value in REG_FIFOADDRPTR is:%hu", data[0]);

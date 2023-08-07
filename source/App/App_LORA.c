@@ -95,10 +95,6 @@ void PORTD_IRQHandler(void)
 	BaseType_t output;
 	if((PORTD->PCR[5] & PORT_PCR_ISF_MASK) != 0)
 	{
-		//set it back to 0
-		//PORTD->PCR[5] = (PORTD->PCR[5] & ~PORT_PCR_ISF_MASK) | PORT_PCR_ISF(1);
-		PORTD->ISFR = 0xFFFFFFFF;
-
 #ifdef BAREMETAL
 #ifdef LORA_TX
 		lora_TX_complete_cb();
@@ -118,6 +114,9 @@ void PORTD_IRQHandler(void)
 			portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 		}
 #endif
+		//set it back to 0
+		//PORTD->PCR[5] = (PORTD->PCR[5] & ~PORT_PCR_ISF_MASK) | PORT_PCR_ISF(1);
+		PORTD->ISFR = 0xFFFFFFFF;
 	}
 }
 

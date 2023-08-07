@@ -51,12 +51,17 @@
 #define SYMBTMO_MSB_SHIFT		0
 #define SYMBTMO_MSB_BITLEN		2
 
+#define CRCONPAYLOAD_SHIFT		6
+#define CRCONPAYLOAD_BITLEN		1
+
+
 //LORA register addresses
 #define REG_FIFO			0x00
 #define REG_OPMODE			0x01
 #define REG_FR_MSB			0x06
 #define REG_FR_MID			0x07
 #define REG_FR_LSB			0x08
+#define REG_HOPCHANNEL		0x1C
 #define REG_MODEMCONFIG1	0x1D
 #define REG_MODEMCONFIG2	0x1E
 #define REG_FIFOADDRPTR		0x0D
@@ -65,6 +70,8 @@
 #define REG_FIFORXCURRADDR	0x10
 #define REG_IRQFLAGS		0x12
 #define REG_RX_NB_BYTES		0x13
+#define REG_PKTSNRVALUE		0x19
+#define REG_PKTRSSIVALUE	0x1A
 #define REG_SYMBTMO_LSB		0x1F
 #define REG_PREAMBLE_MSB	0x20
 #define REG_PREAMBLE_LSB	0x21
@@ -129,6 +136,7 @@ int32_t lora_init(void);
 int32_t lora_test_transmit(void);
 int32_t lora_test_receive(void);
 void lora_calculateRegFrequency(uint32_t carrierFreq, uint32_t oscFreq, RegFrData * outputFreq);
+void lora_calculatePacketStrength(uint8_t PacketRssi, int8_t PacketSNR, uint32_t carrierFreq);
 void lora_TX_complete_cb(void);
 void lora_RX_response_cb(void);
 
