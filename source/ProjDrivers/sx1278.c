@@ -31,12 +31,37 @@
 /**********************************************************************************************************************
 * Global function definition
 *********************************************************************************************************************/
+/*******************************************************************************
+ * @fn         lora_init
+ *
+ * @brief      Dummy init function for lora. Not used here.
+ *
+ * @param[in]  void
+ *
+ * @return     int32_t
+ *
+******************************************************************************/
 int32_t lora_init(void)
 {
 	//clear the GPIO light pins
 	return 1;
 }
 
+/*******************************************************************************
+ * @fn         lora_calculateRegFrequency
+ *
+ * @brief      This function calculates the value to be written into the FREQ register from input
+ * 				carrier frequency.
+ *
+ * @param[in]  uint32_t carrierFreq: frequency to operate packets in. (in MHz)
+ *
+ * @param[in]  uint32_t oscFreq: Lora crystal frequency. Usually 32MHz (in MHz)
+ *
+ * @param[out]  RegFrData * outputFreq: Structure that holds the outputs to be written into the Lora regsiter.
+ *
+ * @return     void
+ *
+******************************************************************************/
 void lora_calculateRegFrequency(uint32_t carrierFreq, uint32_t oscFreq, RegFrData * outputFreq)
 {
 	uint32_t output = round((carrierFreq * (1 << 19)) / oscFreq);
@@ -46,11 +71,21 @@ void lora_calculateRegFrequency(uint32_t carrierFreq, uint32_t oscFreq, RegFrDat
 	DB_PRINT(1, "Output Reg freq is %d", output);
 }
 
-void lora_calculatePacketStrength(uint8_t PacketRssi, int8_t PacketSNR, uint32_t carrierFreq)
-{
+//void lora_calculatePacketStrength(uint8_t PacketRssi, int8_t PacketSNR, uint32_t carrierFreq)
+//{
+//
+//}
 
-}
-
+/*******************************************************************************
+ * @fn         lora_test_transmit
+ *
+ * @brief      This function initializes the module as a Transmitter and then sends a dummy payload.
+ *
+ * @param[in]  void
+ *
+ * @return     int32_t
+ *
+******************************************************************************/
 int32_t lora_test_transmit(void)
 {
 	//each SPI read operation requires two bytes of output (put for safety)
@@ -161,6 +196,16 @@ int32_t lora_test_transmit(void)
 	return 1;
 }
 
+/*******************************************************************************
+ * @fn         lora_test_receive
+ *
+ * @brief      This function initializes the module as a receiver
+ *
+ * @param[in]  void
+ *
+ * @return     int32_t
+ *
+******************************************************************************/
 int32_t lora_test_receive(void)
 {
 	uint8_t RX_interrupt_val = 0;
@@ -288,6 +333,18 @@ int32_t lora_test_receive(void)
 	return 1;
 }
 
+/*******************************************************************************
+ * @fn         lora_TX_complete_cb
+ *
+ * @brief      This is the callback triggered after TX Done interrupt is raised. This
+ * 				function writes 1 into the interrupt register to disable it. Then we display
+ * 				blue light if TX success else pink light if fail.
+ *
+ * @param[in]  void
+ *
+ * @return     void
+ *
+******************************************************************************/
 void lora_TX_complete_cb(void)
 {
 	uint8_t data[2] = {0};
@@ -309,6 +366,19 @@ void lora_TX_complete_cb(void)
 	}
 }
 
+/*******************************************************************************
+ * @fn         lora_RX_response_cb
+ *
+ * @brief      This is the callback triggered after RX Done interrupt is raised. This
+ * 				function writes 1 into the interrupt register to disable it. Then we display
+ * 				blue light if RX success else pink light if fail. Next, we read from the Lora
+ * 				payload buffer to view the data
+ *
+ * @param[in]  void
+ *
+ * @return     void
+ *
+******************************************************************************/
 void lora_RX_response_cb(void)
 {
 	uint8_t payload_len = 0;

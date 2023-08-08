@@ -20,6 +20,16 @@ static spi_master_config_t masterConfig;
 /**********************************************************************************************************************
 * Global function definition
 *********************************************************************************************************************/
+/*******************************************************************************
+ * @fn         spi_init
+ *
+ * @brief      This initializes the SPI module inside the FRDM-KL25
+ *
+ * @param[in]  void
+ *
+ * @return     bool: true if success else fail
+ *
+******************************************************************************/
 bool spi_init(void)
 {
     spi_master_config_t masterConfig = {0};
@@ -42,6 +52,26 @@ bool spi_init(void)
 	return ret;
 }
 
+/*******************************************************************************
+ * @fn         spi_transfer
+ *
+ * @brief      This API is used to send and receive packets via the board's SPI interface.
+ *
+ * @param[in]  spi_direction_t spi_direction: read or write
+ *
+ * @param[in]  uint8_t address: the register address to read to/write from
+ *
+ * @param[in]  uint8_t * data : this is the data that we want to write into the address.
+ * 				NULL during a read
+ *
+ * @param[in]  size_t dataSize: the size of the data to write/read (in bytes)
+ *
+ * @param[in]  uint8_t * out : the buffer to be able to store the data being read of size
+ * 				dataSize. Put to NULL during a write
+ *
+ * @return     status_t: generic status return codes by NXP of enum type _generic_status
+ *
+******************************************************************************/
 status_t spi_transfer(spi_direction_t spi_direction, uint8_t address,
 						uint8_t * data, size_t dataSize, uint8_t * out)
 {

@@ -45,13 +45,6 @@
 * Defines section
 *********************************************************************************************************************/
 
-
-#define USE_SPI
-//#define LED_TEST
-/*
- * @brief   Application entry point.
- */
-
 /**********************************************************************************************************************
 * Local typedef section
 *********************************************************************************************************************/
@@ -170,22 +163,22 @@ static void LoraPOCTestFunction(void)
     	lora_init();
 #ifdef LORA_TX
     	lora_test_transmit();
-    	while(interrupt_issued == false)
-    	{
-    		DB_PRINT(1, "waiting for TX interrupt");
+//    	while(interrupt_issued == false)
+//    	{
+//    		DB_PRINT(1, "waiting for TX interrupt");
 //    		SysTick_DelayTicks(500U);
-    	}
+//    	}
 #endif
 #ifdef LORA_RX
     	lora_test_receive();
-    	while(interrupt_issued == false)
-    	{
-    		DB_PRINT(1, "waiting for RX interrupt");
+//    	while(interrupt_issued == false)
+//    	{
+//    		DB_PRINT(1, "waiting for RX interrupt");
 //    		SysTick_DelayTicks(500U);
-    	}
+//    	}
 #endif
     }
-    printf("***************End of program execution**************");
+    printf("***************End of program execution. Now wait for interrupts**************");
 }
 
 /*******************************************************************************
