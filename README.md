@@ -4,6 +4,7 @@
 This is a (work in progress) project where an MCU (FRDM-KL25 dev board) is used to communicate to another MCU using Semtech's SX-1278 chip that uses the Low-Range (LoRa) radio communication. The MCU is interfaced with the module via SPI power supply given from a PC.
 
 I am releasing this as a baremetal project but you will find FreeRTOS API's in the project but unused. This is because I am still working on developing this into something more useful (see the section on Works in Progress). However, some of the API's I've made to work with LORA could be of some use to the community, and hence pushing this working PoC at this stage.
+
 I'm happy to also receive feedback on the same.
 
 ## Important Pointers about this Project
@@ -18,6 +19,7 @@ Where the Project is at right now:
 7. The communicating carrier frequency was kept at 434MHz to keep with international and local license-free bands of operation. If you are changing the communicating frequencies, do so at your own risk!
 
 Development IDE : MCUXpresso
+
 Programming Language : C
 
 ## Getting Started
