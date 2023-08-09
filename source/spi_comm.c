@@ -59,7 +59,7 @@ bool spi_init(void)
  *
  * @param[in]  spi_direction_t spi_direction: read or write
  *
- * @param[in]  uint8_t address: the register address to read to/write from
+ * @param[in]  uint8_t address: the register address to read from/write to
  *
  * @param[in]  uint8_t * data : this is the data that we want to write into the address.
  * 				NULL during a read
@@ -102,4 +102,47 @@ status_t spi_transfer(spi_direction_t spi_direction, uint8_t address,
 	GPIO_SetPinsOutput(GPIOD, 0x01);
 
 	return ret;
+}
+
+
+/*******************************************************************************
+ * @fn         spi_transfer_read
+ *
+ * @brief      This API is used to receive packets via the board's SPI interface.
+ *
+ * @param[in]  uint8_t address: the register address to read from
+ *
+ * @param[in]  size_t dataSize: the size of the data to read (in bytes)
+ *
+ * @param[in]  uint8_t * buffer : the buffer to be able to store the data being read of size
+ * 				int.
+ *
+ * @return     int32_t: generic status return codes by NXP of enum type _generic_status
+ *
+******************************************************************************/
+int32_t spi_transfer_read(uint8_t address, int dataSize, uint8_t * buffer)
+{
+	return spi_transfer(SPI_Read, address, NULL, (size_t) dataSize, buffer);
+}
+
+/*******************************************************************************
+ * @fn         spi_transfer_write
+ *
+ * @brief      This API is used to send and receive packets via the board's SPI interface.
+ *
+ * @param[in]  spi_direction_t spi_direction: read or write
+ *
+ * @param[in]  uint8_t address: the register address to write to
+ *
+ * @param[in]  uint8_t * buffer : this is the data that we want to write into the address.
+ * 				NULL during a read
+ *
+ * @param[in]  int dataSize: the size of the data to write/read (in bytes)
+ *
+ * @return     int32_t: generic status return codes by NXP of enum type _generic_status
+ *
+******************************************************************************/
+int32_t spi_transfer_write(uint8_t address, int dataSize, uint8_t * buffer)
+{
+	return spi_transfer(SPI_Write, address, buffer, (size_t) dataSize, NULL);
 }

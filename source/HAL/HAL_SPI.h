@@ -1,18 +1,17 @@
 /*
- * spi_comm.h
+ * HAL_SPI.h
  *
- *  Created on: Feb 19, 2023
+ *  Created on: Aug 9, 2023
  *      Author: johns
  */
 
-#ifndef SPI_COMM_H_
-#define SPI_COMM_H_
+#ifndef HAL_HAL_SPI_H_
+#define HAL_HAL_SPI_H_
 
 /**********************************************************************************************************************
 * Includes section
 *********************************************************************************************************************/
-#include <app_config.h>
-#include "fsl_spi.h"
+#include "app_config.h"
 
 /**********************************************************************************************************************
 * Defines section
@@ -24,16 +23,26 @@
 *********************************************************************************************************************/
 typedef enum
 {
-	SPI_Write = 0,
-	SPI_Read
-}spi_direction_t;
+	halSPIInvalidArgs = -2,
+	halSPIFail,
+	halSPISuccess,
+}halSPIRet_t;
+
+typedef bool (* SPIInit)(void);
+typedef int32_t (* SPIRead)(uint8_t address, int dataSize, uint8_t * buffer);
+typedef int32_t (* SPIWrite)(uint8_t address, int dataSize, uint8_t * buffer);
+typedef bool (* SPIDeInit)(void);
+
+typedef struct
+{
+	SPIInit halSPIInit;
+	SPIRead halSPIRead;
+	SPIWrite halSPIWrite;
+	SPIDeInit halSPIDeInit;
+}halSPIAction_t;
 /**********************************************************************************************************************
 * Function declaration section
 *********************************************************************************************************************/
-bool spi_init(void);
-status_t spi_transfer(spi_direction_t spi_direction, uint8_t address,
-						uint8_t * data, size_t dataSize, uint8_t * out);
-int32_t spi_transfer_write(uint8_t address, int dataSize, uint8_t * buffer);
-int32_t spi_transfer_read(uint8_t address, int dataSize, uint8_t * buffer);
-
-#endif /* SPI_COMM_H_ */
+halSPIAction_t * halConfigureSPIHandle(SPIInit SPI_init_fn, SPIRead SPI_read_fn,
+									SPIWrite SPI_write_fn, SPIDeInit SPI_Deinit_fn);
+#endif /* HAL_HAL_SPI_H_ */

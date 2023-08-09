@@ -68,7 +68,7 @@ void lora_calculateRegFrequency(uint32_t carrierFreq, uint32_t oscFreq, RegFrDat
 	outputFreq->FrLSB = output & 0xFF;
 	outputFreq->FrMID = (output & 0xFF00) >> 8;
 	outputFreq->FrMSB = (output & 0xFF0000) >> 16;
-	DB_PRINT(1, "Output Reg freq is %d", output);
+	DB_PRINT(1, "Output Reg freq is %lu", output);
 }
 
 //void lora_calculatePacketStrength(uint8_t PacketRssi, int8_t PacketSNR, uint32_t carrierFreq)
@@ -447,5 +447,4 @@ void lora_RX_response_cb(void)
 		(void) spi_transfer(SPI_Read, REG_FIFO, NULL, 1, (RX_buffer + j));
 		DB_PRINT(1, "Data:%d - %c", j, RX_buffer[j]);
 	}
-	return 1;
 }

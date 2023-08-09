@@ -61,6 +61,7 @@ status_t result = kStatus_Success;
 extern bool interrupt_issued;
 
 TaskHandle_t * handle = NULL;
+halSPIAction_t * SPI_handle = NULL;
 
 extern uint32_t SystemCoreClock;
 /**********************************************************************************************************************
@@ -91,7 +92,13 @@ int main(void)
 	//setting to 32KHz since we want low power consumption
 	ConfigureSystemClock();
 	KL_InitPins();
-	if(false == spi_init())
+	SPI_handle = halConfigureSPIHandle(spi_init, spi_transfer_read, spi_transfer_write, NULL);
+	if(NULL == SPI_handle)
+	{
+		DB_PRINT(1, "Couldn't configure SPI. exit!");
+		return 0;
+	}
+	if(false == SPI_handle->halSPIInit())
 	{
 		DB_PRINT(1, "Couldn't initialize SPI. exit!");
 		return 0;
