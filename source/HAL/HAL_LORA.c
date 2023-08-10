@@ -119,7 +119,7 @@ halLoraRet_t halLoraConfigTX(void)
 	//be careful since I will be writing 0 into the first two LSBits...
 	data[0] = SET_VAL(7, SPREADINGFACTOR_SHIFT, SPREADINGFACTOR_BITLEN) |
 			SET_VAL(TX_SINGLE_MODE, TXCONTINUOUSMODE_SHIFT, TXCONTINUOUSMODE_BITLEN) |
-			SET_VAL(CRC_DISABLE, RXPAYLCRCON_SHIFT, RXPAYLCRCON_BITLEN);
+			SET_VAL(CRC_ENABLE, RXPAYLCRCON_SHIFT, RXPAYLCRCON_BITLEN);
 	DB_PRINT(1, "New value written in REG_MODEMCONFIG2 is:%hu", data[0]);
 	(void) SPI_handle->halSPIWrite(REG_MODEMCONFIG2, 1, data);
 	//write preamble length to 0x50
@@ -269,12 +269,41 @@ halLoraRet_t halLoraReadNumBytes(uint8_t * numBytes)
 
 halLoraRet_t halLoraReadData(uint8_t * RX_buffer, uint8_t payload_len)
 {
-	if (payload_len > 256)
+	uint8_t data[2] = {0};
+	uint8_t PacketRssi = 0;
+	int8_t PacketSNR = 0;
+	if (payload_len == 0)
 	{
 		return halLoraInvalidArgs;
 	}
+	/*read the RSSI and SNR here?
+	 * it has to be done in the period between header IRQ and RXDone IRQ*/
+	(void) SPI_handle->halSPIRead(REG_PKTSNRVALUE, 1, data);
+	DB_PRINT(1, "Value in REG_PKTSNRVALUE is %d", data[0]);
+	(void) SPI_handle->halSPIRead(REG_PKTRSSIVALUE, 1, data);
+	DB_PRINT(1, "Value in REG_PKTRSSIVALUE is %d", data[0]);
+
+	//clear these flags in the register
+	data[0] = SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN) |
+			 SET_VAL(1, IRQFLAG_VALIDHEAD, IRQFLAG_BITLEN);
+	(void) SPI_handle->halSPIWrite(REG_IRQFLAGS, 1, data);
+	//check if we have CRC.
+	(void) SPI_handle->halSPIRead(REG_HOPCHANNEL, 1, data);
+	if(GET_VAL(data[0], CRCONPAYLOAD_SHIFT, CRCONPAYLOAD_BITLEN) == CRC_DISABLE)
+	{
+		DB_PRINT(1,"****We don't have CRC at the end of the payload. Data integrity unchecked!!******");
+	}
+	//check if the CRC is good :)
+	SPI_handle->halSPIRead(REG_IRQFLAGS, 1, data);
+	//if, we have an error in CRC, clean buffer and exit
+	if(GET_VAL(data[0],IRQFLAG_PAYLCRCERR,IRQFLAG_BITLEN) == 1)
+	{
+		data[0] = SET_VAL(1, IRQFLAG_PAYLCRCERR, IRQFLAG_BITLEN);
+		(void) SPI_handle->halSPIWrite(REG_IRQFLAGS, 1, data);
+		//for now just print data is bad
+		DB_PRINT(1, "*******Received Data is BAD!!!****************");
+	}
 	//TODO: clean buffer after reading??
-	uint8_t data[2] = {0};
 	uint8_t RX_curr_Address = 0;
 	(void) SPI_handle->halSPIRead(REG_FIFOADDRPTR, 1, data);
 	DB_PRINT(1, "Value in REG_FIFOADDRPTR is:%hu", data[0]);
