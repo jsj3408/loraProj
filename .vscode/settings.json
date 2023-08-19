@@ -1,0 +1,5 @@
+{
+    "files.associations": {
+        "fsl_debug_console.h": "c"
+    }
+}

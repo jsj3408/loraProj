@@ -25,6 +25,7 @@ bool interrupt_issued = false;
 * Global variable
 *********************************************************************************************************************/
 static halLoraCurrentInfo_t LORA_CurrentStatus = {0};
+static packetHealthInfo_t LoraSignalData = {0};
 static uint8_t readBuffer[LORA_READBUF_SIZE] = {0};
 EventGroupHandle_t LORA_EventGroup;
 TimerHandle_t payloadTXTimer;
@@ -70,6 +71,12 @@ void App_LORA_run(void * args)
 	uint8_t numBytesRX = 0;
 	uint32_t payload_TX_iter = 1;
 	char payload[] = "Eyyy: You've received this payload. Iteration:    .";
+	char display_text[LORA_READBUF_SIZE];
+#ifdef USE_DISPLAY
+	uint8_t addon_text_len = 0;
+	ssd1306_init();
+	printf("Initialized SSD1306.....\n");
+#endif
 #ifdef APP_RX
 	if(halLoraSuccess != halLoraBeginReceiveMode(&LORA_CurrentStatus))
 	{
@@ -78,7 +85,7 @@ void App_LORA_run(void * args)
 #endif
 #ifdef APP_TX
 	payloadTXTimer = xTimerCreate("TX_Timer", pdMS_TO_TICKS(15000), pdFALSE, NULL, payloadTX_CB);
-	DB_PRINT(1, "Start timer of 20s");
+	DB_PRINT(1, "Start timer of 15s");
 	xTimerStart(payloadTXTimer, 100);
 #endif
 	for(;;)
@@ -92,7 +99,13 @@ void App_LORA_run(void * args)
 			case RX_BIT:
 				halLoraReadNumBytes(&numBytesRX);
 				memset(readBuffer, 0, LORA_READBUF_SIZE);
-				halLoraReadData(readBuffer, numBytesRX);
+				halLoraReadData(readBuffer, numBytesRX, &LoraSignalData);
+#ifdef USE_DISPLAY
+				memcpy(display_text, readBuffer, numBytesRX);
+				//we want to display SNR and RSSI also in addition to payload received
+				addon_text_len = snprintf(display_text+numBytesRX, 24, " SNR:%d, RSSI:%d", LoraSignalData.packetSNR, LoraSignalData.packetRSSI);
+				ssd1306_write(display_text, numBytesRX+addon_text_len);
+#endif
 			break;
 
 			case TX_BIT:

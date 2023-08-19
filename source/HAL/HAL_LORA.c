@@ -33,7 +33,7 @@ extern halSPIAction_t * SPI_handle;
 /**********************************************************************************************************************
 * Local function declaration section
 *********************************************************************************************************************/
-
+static void calculateSignalHealth(uint8_t snrVal, uint8_t rssiVal, packetHealthInfo_t * packetHealthInfo);
 
 /**********************************************************************************************************************
 * Global function definition
@@ -369,11 +369,11 @@ halLoraRet_t halLoraReadNumBytes(uint8_t * numBytes)
  * @return     halLoraRet_t: status enums
  *
 ******************************************************************************/
-halLoraRet_t halLoraReadData(uint8_t * RX_buffer, uint8_t payload_len)
+halLoraRet_t halLoraReadData(uint8_t * RX_buffer, uint8_t payload_len, packetHealthInfo_t * packetHealthInfo)
 {
 	uint8_t data[2] = {0};
 	uint8_t PacketRssi = 0;
-	int8_t PacketSNR = 0;
+	uint8_t PacketSNR = 0;
 	if (payload_len == 0)
 	{
 		return halLoraInvalidArgs;
@@ -381,10 +381,12 @@ halLoraRet_t halLoraReadData(uint8_t * RX_buffer, uint8_t payload_len)
 	/*read the RSSI and SNR here?
 	 * it has to be done in the period between header IRQ and RXDone IRQ*/
 	(void) SPI_handle->halSPIRead(REG_PKTSNRVALUE, 1, data);
-	DB_PRINT(1, "Value in REG_PKTSNRVALUE is %d", data[0]);
+	PacketSNR = data[0];
+	DB_PRINT(1, "Value in REG_PKTSNRVALUE is %d", PacketSNR);
 	(void) SPI_handle->halSPIRead(REG_PKTRSSIVALUE, 1, data);
-	DB_PRINT(1, "Value in REG_PKTRSSIVALUE is %d", data[0]);
-
+	PacketRssi = data[0];
+	DB_PRINT(1, "Value in REG_PKTRSSIVALUE is %d", PacketRssi);
+	calculateSignalHealth(PacketSNR, PacketRssi, packetHealthInfo);
 	//clear these flags in the register
 	data[0] = SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN) |
 			 SET_VAL(1, IRQFLAG_VALIDHEAD, IRQFLAG_BITLEN);
@@ -433,9 +435,6 @@ halLoraRet_t halLoraReadData(uint8_t * RX_buffer, uint8_t payload_len)
 	}
 	(void) SPI_handle->halSPIRead(REG_FIFOADDRPTR, 1, data);
 	DB_PRINT(1, "Value in REG_FIFOADDRPTR is:%hu", data[0]);
-	//reset back the address pointer since we have read the bytes
-	data[0] = FIFO_Address_Ptr - payload_len;
-	(void) SPI_handle->halSPIWrite(REG_FIFOADDRPTR, 1, data);
 	return halLoraSuccess;
 }
 
@@ -479,4 +478,12 @@ void halLoraRXPayloadCB(void)
 	//clear these flags in the register
 	data[0] = SET_VAL(1, IRQFLAG_RXDONE, IRQFLAG_BITLEN);
 	(void) SPI_handle->halSPIWrite(REG_IRQFLAGS, 1, data);
+}
+
+
+static void calculateSignalHealth(uint8_t snrVal, uint8_t rssiVal, packetHealthInfo_t * packetHealthInfo)
+{
+	int8_t SNR_calc = ((int8_t ) snrVal)/4;
+	packetHealthInfo->packetSNR = SNR_calc;
+	packetHealthInfo->packetRSSI = -164 + rssiVal; //we are using lw freq here. So I am hardcoding
 }

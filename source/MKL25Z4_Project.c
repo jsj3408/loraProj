@@ -86,12 +86,16 @@ static void sampleTask(void * args);
 ******************************************************************************/
 int main(void)
 {
+	int ret=0;
 #ifdef BAREMETAL
 	LoraPOCTestFunction();
 #else
 	//setting to 32KHz since we want low power consumption
 	ConfigureSystemClock();
 	KL_InitPins();
+#ifdef USE_DISPLAY
+	ret = i2c_init();
+#endif
 	SPI_handle = halConfigureSPIHandle(spi_init, spi_transfer_read, spi_transfer_write, NULL);
 	if(NULL == SPI_handle)
 	{
@@ -224,6 +228,23 @@ static void KL_InitPins(void)
 	PORT_SetPinMux(PORTD, 5U, kPORT_MuxAsGpio);
 	PORT_SetPinInterruptConfig(PORTD, 5, extern_interrupt);
 	EnableIRQ(PORTD_IRQn);
+
+#ifdef USE_DISPLAY
+	//enabling clock for only PortE for I2C communication
+	CLOCK_EnableClock(kCLOCK_PortE);
+	port_pin_config_t config =
+		{
+			kPORT_PullUp,
+		    kPORT_FastSlewRate,
+		    kPORT_PassiveFilterDisable,
+		    kPORT_OpenDrainEnable,
+		    kPORT_LowDriveStrength,
+			kPORT_MuxAlt6,
+		    0,
+		};
+	PORT_SetPinConfig(PORTE, 0U, &config);
+	PORT_SetPinConfig(PORTE, 1U, &config);	
+#endif
 
 #ifdef BAREMETAL
 	//since the LED's are common cathode, we drive them Low to turn ON and High to turn OFF
