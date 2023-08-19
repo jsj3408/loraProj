@@ -90,8 +90,17 @@
 #define RX_CONT_MODE	0b101
 
 //bandwidth
-#define BANDWIDTH_1		0b0000 //7.8kHz
-#define BANDWIDTH_2		0b0001 //104.kHz
+#define BANDWIDTH_7_8	0b0000 //7.8kHz
+#define BANDWIDTH_10_4	0b0001 //10.4kHz
+#define BANDWIDTH_15_6	0b0010	//15.6kHz
+#define BANDWIDTH_20_8	0b0011	//20.8kHz
+#define BANDWIDTH_31_3	0b0100	//31.25kHz
+#define BANDWIDTH_41_7	0b0101	//41.7kHz
+#define BANDWIDTH_62_5	0b0110	//62.5kHz
+#define BANDWIDTH_125	0b0111	//125kHz
+#define BANDWIDTH_250	0b1000	//250kHz
+#define BANDWIDTH_500	0b1001	//500kHz
+
 
 //CR
 #define CODERATE_1	0b001 // 4/5

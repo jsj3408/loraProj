@@ -19,6 +19,8 @@
 #define CRYSTAL_OSC_FREQ 	32	//in MHz
 #define CARRIER_FREQ		434 //in MHz
 
+#define SPREAD_FACTOR 12 //can be from 7-12. If 6, then we have to add extra configurations
+
 /**********************************************************************************************************************
 * Local typedef section
 *********************************************************************************************************************/
@@ -27,9 +29,26 @@
 * Global variable
 *********************************************************************************************************************/
 extern halSPIAction_t * SPI_handle;
+
+/**********************************************************************************************************************
+* Local function declaration section
+*********************************************************************************************************************/
+
+
 /**********************************************************************************************************************
 * Global function definition
 *********************************************************************************************************************/
+/*******************************************************************************
+ * @fn         halLoraInit
+ *
+ * @brief      This function initializes LORA with communicating Freq, operation mode, etc
+ *
+ * @param[in]  halLoraCurrentInfo_t * LoraCurrentInfo: structure to save current LORA
+ * 				status
+ *
+ * @return     halLoraRet_t: status enums
+ *
+******************************************************************************/
 halLoraRet_t halLoraInit(halLoraCurrentInfo_t * LoraCurrentInfo)
 {
 	uint8_t data[2] = {0};
@@ -50,6 +69,19 @@ halLoraRet_t halLoraInit(halLoraCurrentInfo_t * LoraCurrentInfo)
 	return halLoraSuccess;
 }
 
+/*******************************************************************************
+ * @fn         halLoraSetMode
+ *
+ * @brief      This function sets up lora to be TX or RX
+ *
+ * @param[in]  halLoraCurrentInfo_t * LoraCurrentInfo: structure to save current LORA
+ * 				status
+ *
+ * @param[in]  halLoraMode_t mode: mode to switch into
+ *
+ * @return     halLoraRet_t: status enums
+ *
+******************************************************************************/
 halLoraRet_t halLoraSetMode(halLoraMode_t mode, halLoraCurrentInfo_t * LoraCurrentInfo)
 {
 	halLoraRet_t ret = halLoraSuccess;
@@ -84,6 +116,16 @@ halLoraRet_t halLoraSetMode(halLoraMode_t mode, halLoraCurrentInfo_t * LoraCurre
 	return ret;
 }
 
+/*******************************************************************************
+ * @fn         halLoraConfigTX
+ *
+ * @brief      This function sets up all the required params to configure LORA as TX
+ *
+ * @param[in]  void
+ *
+ * @return     halLoraRet_t: status enums
+ *
+******************************************************************************/
 halLoraRet_t halLoraConfigTX(void)
 {
 	//each SPI read operation requires two bytes of output (put for safety)
@@ -111,13 +153,13 @@ halLoraRet_t halLoraConfigTX(void)
 	DB_PRINT(1, "New value written in REG_OPMODE is:%hu", data[0]);
 	(void) SPI_handle->halSPIWrite(REG_OPMODE, 1, data);
 	//now write the configuration
-	data[0] = SET_VAL(BANDWIDTH_1, BANDWIDTH_SHIFT, BANDWIDTH_BITLEN) |
+	data[0] = SET_VAL(BANDWIDTH_500, BANDWIDTH_SHIFT, BANDWIDTH_BITLEN) |
 			SET_VAL(CODERATE_1, CODRATE_SHIFT, CODRATE_BITLEN) |
 			SET_VAL(EXPL_HEADER, IMPLHEADERMODEON_SHIFT, IMPLHEADERMODEON_BITLEN);
 	DB_PRINT(1, "New value written in REG_MODEMCONFIG1 is:%hu", data[0]);
 	(void) SPI_handle->halSPIWrite(REG_MODEMCONFIG1, 1, data);
 	//be careful since I will be writing 0 into the first two LSBits...
-	data[0] = SET_VAL(7, SPREADINGFACTOR_SHIFT, SPREADINGFACTOR_BITLEN) |
+	data[0] = SET_VAL(SPREAD_FACTOR, SPREADINGFACTOR_SHIFT, SPREADINGFACTOR_BITLEN) |
 			SET_VAL(TX_SINGLE_MODE, TXCONTINUOUSMODE_SHIFT, TXCONTINUOUSMODE_BITLEN) |
 			SET_VAL(CRC_ENABLE, RXPAYLCRCON_SHIFT, RXPAYLCRCON_BITLEN);
 	DB_PRINT(1, "New value written in REG_MODEMCONFIG2 is:%hu", data[0]);
@@ -134,12 +176,29 @@ halLoraRet_t halLoraConfigTX(void)
 	return halLoraSuccess;
 }
 
-halLoraRet_t halLoraTransmit(uint8_t * payload_data, uint8_t payload_len)
+/*******************************************************************************
+ * @fn         halLoraTransmit
+ *
+ * @brief      This function transmits the reqd payload data of specified length
+ *
+ * @param[in]  uint8_t * payload_data: buffer containing data to be TX
+ *
+ * @param[in]  uint8_t payload_len: length of data to be transmitted
+ *
+ * @return     halLoraRet_t: status enums
+ *
+******************************************************************************/
+halLoraRet_t halLoraTransmit(halLoraCurrentInfo_t * LoraCurrentInfo,
+							uint8_t * payload_data, uint8_t payload_len)
 {
 	uint8_t data[2] = {0};
-	if((payload_len == 0) || (payload_data == NULL))
+	if((payload_len == 0) || (payload_data == NULL) || (LoraCurrentInfo == NULL))
 	{
 		return halLoraInvalidArgs;
+	}
+	if((LoraCurrentInfo->isInitialized == false) || (LoraCurrentInfo->currentMode != halLoraModeTX))
+	{
+		return halLoraFail;
 	}
 	/*change mode to STANDBY!**/
 	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
@@ -172,6 +231,16 @@ halLoraRet_t halLoraTransmit(uint8_t * payload_data, uint8_t payload_len)
 	return halLoraSuccess;
 }
 
+/*******************************************************************************
+ * @fn         halLoraConfigRX
+ *
+ * @brief      This function sets up all the required params to configure LORA as RX
+ *
+ * @param[in]  void
+ *
+ * @return     halLoraRet_t: status enums
+ *
+******************************************************************************/
 halLoraRet_t halLoraConfigRX(void)
 {
 	//each SPI read operation requires two bytes of output (put for safety)
@@ -221,12 +290,12 @@ halLoraRet_t halLoraConfigRX(void)
 	data[0] = 0xFF; //this writes the LSB
 	(void) SPI_handle->halSPIWrite(REG_SYMBTMO_LSB, 1, data);
 	//set spreading factor as 7 and write MSB of SymbTimeout
-	data[0] = SET_VAL(7, SPREADINGFACTOR_SHIFT, SPREADINGFACTOR_BITLEN) |
+	data[0] = SET_VAL(SPREAD_FACTOR, SPREADINGFACTOR_SHIFT, SPREADINGFACTOR_BITLEN) |
 			SET_VAL(0x11, SYMBTMO_MSB_SHIFT, SYMBTMO_MSB_BITLEN); //this is the MSB
 	// DB_PRINT(1, "New value written in REG_MODEMCONFIG2 is:%hu", data[0]);
 	(void) SPI_handle->halSPIWrite(REG_MODEMCONFIG2, 1, data);
 	//now write the configuration
-	data[0] = SET_VAL(BANDWIDTH_1, BANDWIDTH_SHIFT, BANDWIDTH_BITLEN) |
+	data[0] = SET_VAL(BANDWIDTH_500, BANDWIDTH_SHIFT, BANDWIDTH_BITLEN) |
 			SET_VAL(CODERATE_1, CODRATE_SHIFT, CODRATE_BITLEN) |
 			SET_VAL(EXPL_HEADER, IMPLHEADERMODEON_SHIFT, IMPLHEADERMODEON_BITLEN);
 	DB_PRINT(1, "New value written in REG_MODEMCONFIG1 is:%hu", data[0]);
@@ -239,6 +308,16 @@ halLoraRet_t halLoraConfigRX(void)
 	return halLoraSuccess;
 }
 
+/*******************************************************************************
+ * @fn         halLoraBeginReceiveMode
+ *
+ * @brief      This function starts the RX_CONTINUOUS operation
+ *
+ * @param[in]  halLoraCurrentInfo_t * LoraCurrentInfo: data structure of the Lora module state
+ *
+ * @return     halLoraRet_t: status enums
+ *
+******************************************************************************/
 halLoraRet_t halLoraBeginReceiveMode(halLoraCurrentInfo_t * LoraCurrentInfo)
 {
 	uint8_t data[2] = {0};
@@ -258,6 +337,17 @@ halLoraRet_t halLoraBeginReceiveMode(halLoraCurrentInfo_t * LoraCurrentInfo)
 	return halLoraSuccess;
 
 }
+
+/*******************************************************************************
+ * @fn         halLoraReadNumBytes
+ *
+ * @brief      This function gets the length of payload received
+ *
+ * @param[in]  uint8_t * numBytes: number of bytes to read from LORA
+ *
+ * @return     halLoraRet_t: status enums
+ *
+******************************************************************************/
 halLoraRet_t halLoraReadNumBytes(uint8_t * numBytes)
 {
 	uint8_t data[2] = {0};
@@ -267,6 +357,18 @@ halLoraRet_t halLoraReadNumBytes(uint8_t * numBytes)
 	return halLoraSuccess;
 }
 
+/*******************************************************************************
+ * @fn         halLoraReadData
+ *
+ * @brief      This function gets new data from the RX buffer in LOR of specified length
+ *
+ * @param[in]  uint8_t * RX_buffer: buffer array provided from calling function
+ *
+ * @param[in] uint8_t payload_len: requested length of data
+ *
+ * @return     halLoraRet_t: status enums
+ *
+******************************************************************************/
 halLoraRet_t halLoraReadData(uint8_t * RX_buffer, uint8_t payload_len)
 {
 	uint8_t data[2] = {0};
@@ -305,7 +407,9 @@ halLoraRet_t halLoraReadData(uint8_t * RX_buffer, uint8_t payload_len)
 	}
 	//TODO: clean buffer after reading??
 	uint8_t RX_curr_Address = 0;
+	uint8_t FIFO_Address_Ptr = 0;
 	(void) SPI_handle->halSPIRead(REG_FIFOADDRPTR, 1, data);
+	FIFO_Address_Ptr = data[0];
 	DB_PRINT(1, "Value in REG_FIFOADDRPTR is:%hu", data[0]);
 	(void) SPI_handle->halSPIRead(REG_RX_NB_BYTES, 1, data);
 	DB_PRINT(1, "Value in REG_RX_NB_BYTES is:%hu", data[0]);
@@ -327,9 +431,25 @@ halLoraRet_t halLoraReadData(uint8_t * RX_buffer, uint8_t payload_len)
 		(void) SPI_handle->halSPIRead(REG_FIFO, 1, (RX_buffer + j));
 		DB_PRINT(1, "Data:%d - %c", j, RX_buffer[j]);
 	}
+	(void) SPI_handle->halSPIRead(REG_FIFOADDRPTR, 1, data);
+	DB_PRINT(1, "Value in REG_FIFOADDRPTR is:%hu", data[0]);
+	//reset back the address pointer since we have read the bytes
+	data[0] = FIFO_Address_Ptr - payload_len;
+	(void) SPI_handle->halSPIWrite(REG_FIFOADDRPTR, 1, data);
 	return halLoraSuccess;
 }
 
+/*******************************************************************************
+ * @fn         halLoraTXCompleteCB
+ *
+ * @brief      This is the CB function called inside Interrupt to disable the TX_DONE
+ * 				interrupt from the LORA module
+ *
+ * @param[in]  void
+ *
+ * @return     void
+ *
+******************************************************************************/
 void halLoraTXCompleteCB(void)
 {
 	uint8_t data[2] = {0};
@@ -340,6 +460,17 @@ void halLoraTXCompleteCB(void)
 	(void) SPI_handle->halSPIWrite(REG_IRQFLAGS, 1, data);
 }
 
+/*******************************************************************************
+ * @fn         halLoraRXPayloadCB
+ *
+ * @brief      This is the CB function called inside Interrupt to disable the RX_DONE
+ * 				interrupt from the LORA module
+ *
+ * @param[in]  void
+ *
+ * @return     void
+ *
+******************************************************************************/
 void halLoraRXPayloadCB(void)
 {
 	uint8_t data[2] = {0};

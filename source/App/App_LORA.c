@@ -27,6 +27,13 @@ bool interrupt_issued = false;
 static halLoraCurrentInfo_t LORA_CurrentStatus = {0};
 static uint8_t readBuffer[LORA_READBUF_SIZE] = {0};
 EventGroupHandle_t LORA_EventGroup;
+TimerHandle_t payloadTXTimer;
+
+/**********************************************************************************************************************
+* Local function declaration section
+*********************************************************************************************************************/
+static void payloadTX_CB(TimerHandle_t args);
+
 /**********************************************************************************************************************
 * Global function definition
 *********************************************************************************************************************/
@@ -38,11 +45,20 @@ App_LORA_ret_t App_LORA_init(void)
 	{
 		return App_LORA_fail;
 	}
+#ifdef APP_RX
 	//the device must be in RX mode by default
 	if(halLoraSuccess != halLoraSetMode(halLoraModeRX, &LORA_CurrentStatus))
 	{
 		return App_LORA_fail;
 	}
+#endif
+#ifdef APP_TX
+	//set to TX mode for periodic transmission
+	if(halLoraSuccess != halLoraSetMode(halLoraModeTX, &LORA_CurrentStatus))
+	{
+		return App_LORA_fail;
+	}
+#endif
 	LORA_EventGroup = xEventGroupCreate();
 	return ret;
 }
@@ -52,14 +68,23 @@ void App_LORA_run(void * args)
 	DB_PRINT(1, "Entered task: %s", __func__);
 	EventBits_t bitSet = 0;
 	uint8_t numBytesRX = 0;
+	uint32_t payload_TX_iter = 1;
+	char payload[] = "Eyyy: You've received this payload. Iteration:    .";
+#ifdef APP_RX
 	if(halLoraSuccess != halLoraBeginReceiveMode(&LORA_CurrentStatus))
 	{
 		DB_PRINT(1, "Unable to begin receive operation!");
 	}
+#endif
+#ifdef APP_TX
+	payloadTXTimer = xTimerCreate("TX_Timer", pdMS_TO_TICKS(15000), pdFALSE, NULL, payloadTX_CB);
+	DB_PRINT(1, "Start timer of 20s");
+	xTimerStart(payloadTXTimer, 100);
+#endif
 	for(;;)
 	{
 		DB_PRINT(1, "Task going to sleep");
-		bitSet = xEventGroupWaitBits(LORA_EventGroup, TX_BIT | RX_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
+		bitSet = xEventGroupWaitBits(LORA_EventGroup, TX_BIT | TX_DONE_BIT | RX_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
 		//switch case because we cannot have both RX_BIT and TX_BIT
 		DB_PRINT(1, "Received bitset value: %d", bitSet);
 		switch(bitSet)
@@ -70,6 +95,19 @@ void App_LORA_run(void * args)
 				halLoraReadData(readBuffer, numBytesRX);
 			break;
 
+			case TX_BIT:
+				sprintf(payload + ((sizeof(payload)-1) - 5), "%d", ++payload_TX_iter);
+				if(halLoraSuccess != halLoraTransmit(&LORA_CurrentStatus,
+										payload, (sizeof(payload)-1)))
+				{
+					DB_PRINT(1, "Transmit failed!");
+				}
+			break;
+
+			case TX_DONE_BIT:
+				DB_PRINT(1, "Transmission was successful. Restart timer!");
+				xTimerStart(payloadTXTimer, 100);
+			break;
 			default:
 				DB_PRINT(1, "Un-handled case here, bruh.");
 			break;
@@ -106,12 +144,28 @@ void PORTD_IRQHandler(void)
 		//temporarily set a variable that tells TX is complete
 		interrupt_issued = true;
 #else
-		halLoraRXPayloadCB();
-		//temporarily set a variable that tells TX is complete
-		output = xEventGroupSetBitsFromISR(LORA_EventGroup, RX_BIT, &xHigherPriorityTaskWoken);
-		if(pdFALSE != output)
+		switch(LORA_CurrentStatus.currentMode)
 		{
-			portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+			case halLoraModeTX:
+				halLoraTXCompleteCB();
+				output = xEventGroupSetBitsFromISR(LORA_EventGroup, TX_DONE_BIT, &xHigherPriorityTaskWoken);
+				if(pdFALSE != output)
+				{
+					portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+				}
+			break;
+
+			case halLoraModeRX:
+				halLoraRXPayloadCB();
+				output = xEventGroupSetBitsFromISR(LORA_EventGroup, RX_BIT, &xHigherPriorityTaskWoken);
+				if(pdFALSE != output)
+				{
+					portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+				}
+			break;
+
+			default:
+			break;
 		}
 #endif
 		//set it back to 0
@@ -120,3 +174,17 @@ void PORTD_IRQHandler(void)
 	}
 }
 
+/**********************************************************************************************************************
+* Local function definition section
+*********************************************************************************************************************/
+static void payloadTX_CB(TimerHandle_t args)
+{
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	BaseType_t output;
+	output = xEventGroupSetBitsFromISR(LORA_EventGroup, TX_BIT, &xHigherPriorityTaskWoken);
+	if(pdFALSE != output)
+	{
+		portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+	}
+
+}

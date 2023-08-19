@@ -117,7 +117,7 @@ int32_t lora_test_transmit(void)
 	DB_PRINT(1, "New value written in REG_OPMODE is:%hu", data[0]);
 	(void) spi_transfer(SPI_Write, REG_OPMODE, data, 1, NULL);
 	//now write the configuration
-	data[0] = SET_VAL(BANDWIDTH_1, BANDWIDTH_SHIFT, BANDWIDTH_BITLEN) |
+	data[0] = SET_VAL(BANDWIDTH_7_8, BANDWIDTH_SHIFT, BANDWIDTH_BITLEN) |
 			SET_VAL(CODERATE_1, CODRATE_SHIFT, CODRATE_BITLEN) |
 			SET_VAL(EXPL_HEADER, IMPLHEADERMODEON_SHIFT, IMPLHEADERMODEON_BITLEN);
 	DB_PRINT(1, "New value written in REG_MODEMCONFIG1 is:%hu", data[0]);
@@ -261,7 +261,7 @@ int32_t lora_test_receive(void)
 	// DB_PRINT(1, "New value written in REG_MODEMCONFIG2 is:%hu", data[0]);
 	(void) spi_transfer(SPI_Write, REG_MODEMCONFIG2, data, 1, NULL);
 	//now write the configuration
-	data[0] = SET_VAL(BANDWIDTH_1, BANDWIDTH_SHIFT, BANDWIDTH_BITLEN) |
+	data[0] = SET_VAL(BANDWIDTH_7_8, BANDWIDTH_SHIFT, BANDWIDTH_BITLEN) |
 			SET_VAL(CODERATE_1, CODRATE_SHIFT, CODRATE_BITLEN) |
 			SET_VAL(EXPL_HEADER, IMPLHEADERMODEON_SHIFT, IMPLHEADERMODEON_BITLEN);
 	DB_PRINT(1, "New value written in REG_MODEMCONFIG1 is:%hu", data[0]);

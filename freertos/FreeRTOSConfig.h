@@ -13,7 +13,7 @@
     ***************************************************************************
     >>!   NOTE: The modification to the GPL is included to allow you to     !<<
     >>!   distribute a combined work that includes FreeRTOS without being   !<<
-    >>!   obliged to provide the source code for proprietary components     !<<
+    >>!   obliged to provide the source chalLoraInitode for proprietary components     !<<
     >>!   outside of the FreeRTOS kernel.                                   !<<
     ***************************************************************************
 
@@ -107,7 +107,7 @@
 /* Memory allocation related definitions. */
 #define configSUPPORT_STATIC_ALLOCATION         0
 #define configSUPPORT_DYNAMIC_ALLOCATION        1
-#define configTOTAL_HEAP_SIZE                   ((size_t)(0x2800))
+#define configTOTAL_HEAP_SIZE                   ((size_t)(0x2500))
 #define configAPPLICATION_ALLOCATED_HEAP        0
 
 /* Hook function related definitions. */
