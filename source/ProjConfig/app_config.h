@@ -35,11 +35,16 @@
 #ifdef BAREMETAL
 //#define LORA_TX
 #define LORA_RX
+
 #else
+
 //#define APP_TX
 #define APP_RX
 
+#ifdef APP_RX
 #define USE_DISPLAY
+#endif
+
 #endif
 /**********************************************************************************************************************
 * Macro section, defines with operation and function
