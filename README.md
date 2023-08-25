@@ -25,13 +25,13 @@ Programming Language : C
 ## Getting Started
 
 ### Schematic
-[!schema](/assets/images/schema.png)
+![schema](/assets/images/schema.png)
 
 Picture of the TX.
-[!TX_img](/assets/images/TX_img.png)
+![TX_img](/assets/images/TX_img.png)
 
 Picture of the RX.
-[!RX_img](/assets/images/RX_img.png)
+![RX_img](/assets/images/RX_img.png)
 
 For instructions concerning the wiring of the SSD1306 display, check out my other [repo](https://github.com/jsj3408/TempSensor-Display).
 
