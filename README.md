@@ -65,6 +65,7 @@ Below are the sources that helped me through this project
 #### Build Baremetal
 1. Go to ProjConfig->app_config.h file and ensure that the macro BAREMETAL is defined.
 2. To build the .bin file for the transmitter, ensure that the macro LORA_TX is defined and the macro LORA_RX is commented out.
+![picsome](assets/images/loraTXmode.png)
 3. Using the hammer button, you can build to generate the .bin and .axf files for flash and debug.
 4. Power up the FRDM-KL25Z on the SDA USB port (the port on the right if the ports face down) that needs to be configured as the TX.
 5. Next, to flash either flash directly as shown in the pic below and selecting "Program Flash Action Using PEMicro probes"
