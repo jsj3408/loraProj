@@ -92,8 +92,11 @@ You can either rely on debug print by OpenSDA(which makes the whole operation su
 #### FreeRTOS operation
 Sorry, I only have OpenSDA prints available in this mode. No helpful LED lights :( . This is why I found it helpful to have a screen to display the paylaod. I hope to use the LED lights soon.
 
+## Results
+Check out [my post](https://yellowseas.wordpress.com/) on LoRa's range performance and some other things as well.
+
 ## Works in Progress
 1. Make the API's more modular for portability.
 2. Be able to send and receive custom user-defined packets in real time.
 3. Explore communication between more nodes without a gateway.
-4. Distance (range tests)...sadly this has been failing for me. Currently troubleshooting this
+4. Distance (range tests) to be improved
