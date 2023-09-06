@@ -33,13 +33,13 @@
 *********************************************************************************************************************/
 //#define BAREMETAL
 #ifdef BAREMETAL
-//#define LORA_TX
-#define LORA_RX
+#define LORA_TX
+//#define LORA_RX
 
 #else
 
-//#define APP_TX
-#define APP_RX
+#define APP_TX
+//#define APP_RX
 
 #ifdef APP_RX
 #define USE_DISPLAY

@@ -19,7 +19,8 @@
 #define CRYSTAL_OSC_FREQ 	32	//in MHz
 #define CARRIER_FREQ		434 //in MHz
 
-#define SPREAD_FACTOR 12 //can be from 7-12. If 6, then we have to add extra configurations
+#define SPREAD_FACTOR 	12 //can be from 7-12. If 6, then we have to add extra configurations
+#define COMM_BANDWIDTH	BANDWIDTH_500
 
 /**********************************************************************************************************************
 * Local typedef section
@@ -153,7 +154,7 @@ halLoraRet_t halLoraConfigTX(void)
 	DB_PRINT(1, "New value written in REG_OPMODE is:%hu", data[0]);
 	(void) SPI_handle->halSPIWrite(REG_OPMODE, 1, data);
 	//now write the configuration
-	data[0] = SET_VAL(BANDWIDTH_500, BANDWIDTH_SHIFT, BANDWIDTH_BITLEN) |
+	data[0] = SET_VAL(COMM_BANDWIDTH, BANDWIDTH_SHIFT, BANDWIDTH_BITLEN) |
 			SET_VAL(CODERATE_1, CODRATE_SHIFT, CODRATE_BITLEN) |
 			SET_VAL(EXPL_HEADER, IMPLHEADERMODEON_SHIFT, IMPLHEADERMODEON_BITLEN);
 	DB_PRINT(1, "New value written in REG_MODEMCONFIG1 is:%hu", data[0]);
@@ -166,7 +167,19 @@ halLoraRet_t halLoraConfigTX(void)
 	(void) SPI_handle->halSPIWrite(REG_MODEMCONFIG2, 1, data);
 	//write preamble length to 0x50
 	data[0] = 0x50;
-	(void) SPI_handle->halSPIWrite(REG_PREAMBLE_LSB, 1, data);\
+	(void) SPI_handle->halSPIWrite(REG_PREAMBLE_LSB, 1, data);
+
+	/****JSJ added this on 6-Sept-2023*******/
+	// set PA_BOOST and keep the other values as default.
+	data[0] = SET_VAL(1, PASELECT_SHIFT, PASELECT_BITLEN) |
+			SET_VAL(0x04, MAXPOWER_SHIFT, MAXPOWER_BITLEN) |
+			SET_VAL(0xF, OUTPUTPOWER_SHIFT, OUTPUTPOWER_BITLEN);
+	(void) spi_transfer(SPI_Write, REG_PACONFIG, data, 1, NULL);
+	//set to 20dB capability (commented out since it doesnt work)
+//	data[0] = 0x87;
+//	(void) spi_transfer(SPI_Write, REG_PADAC, data, 1, NULL);
+	/***********end of addition**************/
+
 	//set DIO0 to trigger interrupt when TXDone
 		//DIO0-DIO1-DIO2-DIO3 (2bits per DIO)
 	data[0] = 0b01000000;
@@ -212,7 +225,7 @@ halLoraRet_t halLoraTransmit(halLoraCurrentInfo_t * LoraCurrentInfo,
 	DB_PRINT(1, "Now load the data into the buffer!!");
 	for(int i = 0; i < payload_len; i++)
 	{
-		(void) SPI_handle->halSPIWrite(REG_FIFO, (uint8_t *) 1, &payload_data[i]);
+		(void) SPI_handle->halSPIWrite(REG_FIFO, 1, (uint8_t *) &payload_data[i]);
 	}
 	//we write the payload length to be transferred
 	(void) SPI_handle->halSPIWrite(REG_PAYLOADLENGTH, 1, &payload_len);
@@ -295,7 +308,7 @@ halLoraRet_t halLoraConfigRX(void)
 	// DB_PRINT(1, "New value written in REG_MODEMCONFIG2 is:%hu", data[0]);
 	(void) SPI_handle->halSPIWrite(REG_MODEMCONFIG2, 1, data);
 	//now write the configuration
-	data[0] = SET_VAL(BANDWIDTH_500, BANDWIDTH_SHIFT, BANDWIDTH_BITLEN) |
+	data[0] = SET_VAL(COMM_BANDWIDTH, BANDWIDTH_SHIFT, BANDWIDTH_BITLEN) |
 			SET_VAL(CODERATE_1, CODRATE_SHIFT, CODRATE_BITLEN) |
 			SET_VAL(EXPL_HEADER, IMPLHEADERMODEON_SHIFT, IMPLHEADERMODEON_BITLEN);
 	DB_PRINT(1, "New value written in REG_MODEMCONFIG1 is:%hu", data[0]);
