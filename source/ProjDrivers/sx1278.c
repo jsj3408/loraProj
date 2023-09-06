@@ -141,6 +141,14 @@ int32_t lora_test_transmit(void)
 	(void) spi_transfer(SPI_Write, REG_FR_MID, &(regFreq.FrMID), 1, NULL);
 	(void) spi_transfer(SPI_Write, REG_FR_LSB, &(regFreq.FrLSB), 1, NULL);
 
+	// set PA_BOOST and keep the other values as default.
+	data[0] = SET_VAL(1, PASELECT_SHIFT, PASELECT_BITLEN) |
+			SET_VAL(0x04, MAXPOWER_SHIFT, MAXPOWER_BITLEN) |
+			SET_VAL(0xF, OUTPUTPOWER_SHIFT, OUTPUTPOWER_BITLEN);
+	(void) spi_transfer(SPI_Write, REG_PACONFIG, data, 1, NULL);
+	//set to 20dB capability
+//	data[0] = 0x87;
+//	(void) spi_transfer(SPI_Write, REG_PADAC, data, 1, NULL);
 	/*change mode to STANDBY!**/
 	data[0] = SET_VAL(LORA_MODE, LONGRANGEMODE_SHIFT, LONGRANGEMODE_BITLEN) |
 				SET_VAL(STANDBY_MODE, DEVICEMODE_SHIFT, DEVICEMODE_BITLEN);

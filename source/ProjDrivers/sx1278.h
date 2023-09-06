@@ -26,6 +26,14 @@
 #define DEVICEMODE_SHIFT        0
 #define DEVICEMODE_BITLEN       3
 
+#define OUTPUTPOWER_BITLEN	4
+#define OUTPUTPOWER_SHIFT	0
+#define MAXPOWER_BITLEN		3
+#define MAXPOWER_SHIFT		4
+#define PASELECT_BITLEN		1
+#define PASELECT_SHIFT		7
+
+
 #define IRQFLAG_BITLEN		1	//the length will always be 1
 #define IRQFLAG_RXTIMEOUT	7
 #define IRQFLAG_RXDONE		6
@@ -61,6 +69,7 @@
 #define REG_FR_MSB			0x06
 #define REG_FR_MID			0x07
 #define REG_FR_LSB			0x08
+#define REG_PACONFIG		0x09
 #define REG_HOPCHANNEL		0x1C
 #define REG_MODEMCONFIG1	0x1D
 #define REG_MODEMCONFIG2	0x1E
@@ -79,6 +88,7 @@
 #define REG_FIFORXBYTEADDR	0x25
 #define REG_DIOMAPPING1		0x40
 #define REG_DIOMAPPING2		0x41
+#define REG_PADAC			0x4D
 
 //data to write
 #define FSK_OOK_MODE 	0
