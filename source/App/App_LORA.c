@@ -30,6 +30,10 @@ static uint8_t readBuffer[LORA_READBUF_SIZE] = {0};
 EventGroupHandle_t LORA_EventGroup;
 TimerHandle_t payloadTXTimer;
 
+
+extern volatile bool rxDataPresent;
+extern volatile uint8_t * rxDataBuf;
+
 /**********************************************************************************************************************
 * Local function declaration section
 *********************************************************************************************************************/

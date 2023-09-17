@@ -64,13 +64,16 @@ TaskHandle_t * handle = NULL;
 halSPIAction_t * SPI_handle = NULL;
 
 extern uint32_t SystemCoreClock;
+
+volatile bool rxDataPresent = false;
+volatile uint8_t rxDataBuf[10] = {0};
 /**********************************************************************************************************************
 * Local function declaration section
 *********************************************************************************************************************/
 static void KL_InitPins(void);
 static void LoraPOCTestFunction(void);
 static void ConfigureSystemClock(void);
-static void sampleTask(void * args);
+static void UARTTest(void);
 /**********************************************************************************************************************
 * Global function definition
 *********************************************************************************************************************/
@@ -167,6 +170,8 @@ static void LoraPOCTestFunction(void)
 
     /* Init board hardware. */
 	KL_InitPins(); //Initializing pins
+	UARTTest();
+	/*dont come here*/
     printf("i2c/SPI pins and GPIO pins initialized...I hope\n");
     ret = spi_init();
     if(ret)
@@ -227,7 +232,7 @@ static void KL_InitPins(void)
 	//enable PTD5 as TX/RX interrupt
 	PORT_SetPinMux(PORTD, 5U, kPORT_MuxAsGpio);
 	PORT_SetPinInterruptConfig(PORTD, 5, extern_interrupt);
-	EnableIRQ(PORTD_IRQn);
+//	EnableIRQ(PORTD_IRQn);
 
 #ifdef USE_DISPLAY
 	//enabling clock for only PortE for I2C communication
@@ -263,6 +268,10 @@ static void KL_InitPins(void)
 	GPIO_PinInit(GPIOB, 18U, &output_config_LED);
 	GPIO_PinInit(GPIOB, 19U, &output_config_LED);
 #endif
+
+	/*set up UART*/
+	PORT_SetPinMux(PORTD, 6U, kPORT_MuxAlt3); //UART0RX
+	PORT_SetPinMux(PORTD, 7U, kPORT_MuxAlt3); //UART0TX
 }
 
 
@@ -275,8 +284,51 @@ static void ConfigureSystemClock(void)
 	//here we want to select options that give us 48MHz output
 	MCG->C4 |= MCG_C4_DRST_DRS(1);
 	MCG->C4 |= MCG_C4_DMX32(1);
-	//divide by 16 to get 3MHz.
-	SIM->CLKDIV1 |= SIM_CLKDIV1_OUTDIV1(0b1111);
+	//divide by 2 to get 24MHz.
+	SIM->CLKDIV1 |= SIM_CLKDIV1_OUTDIV1(0b01);
 	SystemCoreClockUpdate();
 	DB_PRINT(1, "System core clock value is %lu Hz", SystemCoreClock);
 }
+
+static void UARTTest(void)
+{
+	ConfigureSystemClock();
+	//i've read that this value below is System clock div by 2.
+	uint32_t UARTClkFreq = CLOCK_GetFreq(kCLOCK_PllFllSelClk);
+	uart_config_t uartConfig;
+    UART_GetDefaultConfig(&uartConfig);
+    uartConfig.baudRate_Bps = 115200;
+    uartConfig.enableTx = true;
+    uartConfig.enableRx = true;
+
+    SIM->SOPT2 |= SIM_SOPT2_UART0SRC(1); //we want UART freq to be div by 2.
+    SIM->SCGC4 |= SIM_SCGC4_UART0(1);//do i have to do this?
+    int ret = 0;
+    ret = UART_Init(UART0, &uartConfig, UARTClkFreq);
+    /* Enable RX interrupt. */
+    UART_EnableInterrupts(UART0, kUART_RxDataRegFullInterruptEnable | kUART_RxOverrunInterruptEnable);
+    EnableIRQ(UART0_IRQn);
+    DB_PRINT(1, "Write something");
+    UART_WriteByte(UART0, 'I');
+    while(1);
+    DB_PRINT(1, "Enter the while loop");
+    while(1)
+    {
+    	if(rxDataPresent == true)
+    	{
+    		DB_PRINT(1, "We have a new data! Data is %d", rxDataBuf[0]);
+    		rxDataPresent = false;
+    	}
+    }
+}
+
+void UART0_IRQHandler(void)
+{
+    /* If new data arrived. */
+    if ((kUART_RxDataRegFullFlag | kUART_RxOverrunFlag) & UART_GetStatusFlags(UART0))
+    {
+        rxDataBuf[0] = UART_ReadByte(UART0);
+        rxDataPresent = true;
+    }
+}
+

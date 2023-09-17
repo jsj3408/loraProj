@@ -23,6 +23,7 @@
 #include "fsl_clock.h"
 
 #include "fsl_port.h"
+#include "fsl_uart.h"
 #include "fsl_gpio.h"
 
 #include "FreeRTOS.h"
@@ -31,7 +32,7 @@
 /**********************************************************************************************************************
 * Defines section
 *********************************************************************************************************************/
-//#define BAREMETAL
+#define BAREMETAL
 #ifdef BAREMETAL
 #define LORA_TX
 //#define LORA_RX
