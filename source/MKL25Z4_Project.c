@@ -270,8 +270,10 @@ static void KL_InitPins(void)
 #endif
 
 	/*set up UART*/
-	PORT_SetPinMux(PORTD, 6U, kPORT_MuxAlt3); //UART0RX
-	PORT_SetPinMux(PORTD, 7U, kPORT_MuxAlt3); //UART0TX
+	//enabling clock for only PortE for I2C communication
+	CLOCK_EnableClock(kCLOCK_PortE);
+	PORT_SetPinMux(PORTE, 22U, kPORT_MuxAlt4); //UART2TX
+	PORT_SetPinMux(PORTE, 23U, kPORT_MuxAlt4); //UART2RX
 }
 
 
@@ -294,24 +296,36 @@ static void UARTTest(void)
 {
 	ConfigureSystemClock();
 	//i've read that this value below is System clock div by 2.
-	uint32_t UARTClkFreq = CLOCK_GetFreq(kCLOCK_PllFllSelClk);
+	uint32_t UARTClkFreq = CLOCK_GetFreq(kCLOCK_BusClk);
 	uart_config_t uartConfig;
     UART_GetDefaultConfig(&uartConfig);
-    uartConfig.baudRate_Bps = 115200;
+    uartConfig.baudRate_Bps = 57600;
     uartConfig.enableTx = true;
     uartConfig.enableRx = true;
 
-    SIM->SOPT2 |= SIM_SOPT2_UART0SRC(1); //we want UART freq to be div by 2.
-    SIM->SCGC4 |= SIM_SCGC4_UART0(1);//do i have to do this?
+//    SIM->SOPT2 |= SIM_SOPT2_UART0SRC(1); //we want UART freq to be div by 2.
+    SIM->SCGC4 |= SIM_SCGC4_UART2(1);//do i have to do this?
     int ret = 0;
-    ret = UART_Init(UART0, &uartConfig, UARTClkFreq);
+    ret = UART_Init(UART2, &uartConfig, UARTClkFreq);
     /* Enable RX interrupt. */
-    UART_EnableInterrupts(UART0, kUART_RxDataRegFullInterruptEnable | kUART_RxOverrunInterruptEnable);
-    EnableIRQ(UART0_IRQn);
-    DB_PRINT(1, "Write something");
-    UART_WriteByte(UART0, 'I');
-    while(1);
-    DB_PRINT(1, "Enter the while loop");
+    UART_EnableInterrupts(UART2, kUART_RxDataRegFullInterruptEnable | kUART_RxOverrunInterruptEnable);
+    EnableIRQ(UART2_IRQn);
+    uint32_t getUARTStatusFlag = UART_GetStatusFlags(UART2);
+    while(1)
+    {
+		if(kUART_TxDataRegEmptyFlag & getUARTStatusFlag)
+		{
+			DB_PRINT(1, "Write something");
+			UART_WriteByte(UART2, 'I');
+			break;
+		}
+		else
+		{
+			DB_PRINT(1, "Status flag is %d", getUARTStatusFlag);
+			while(1);
+		}
+    }
+    DB_PRINT(1, "Enter the while loop to wait for any data");
     while(1)
     {
     	if(rxDataPresent == true)
@@ -322,12 +336,12 @@ static void UARTTest(void)
     }
 }
 
-void UART0_IRQHandler(void)
+void UART2_IRQHandler(void)
 {
     /* If new data arrived. */
-    if ((kUART_RxDataRegFullFlag | kUART_RxOverrunFlag) & UART_GetStatusFlags(UART0))
+    if ((kUART_RxDataRegFullFlag | kUART_RxOverrunFlag) & UART_GetStatusFlags(UART2))
     {
-        rxDataBuf[0] = UART_ReadByte(UART0);
+        rxDataBuf[0] = UART_ReadByte(UART2);
         rxDataPresent = true;
     }
 }
