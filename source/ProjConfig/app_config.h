@@ -23,8 +23,8 @@
 #include "fsl_clock.h"
 
 #include "fsl_port.h"
-#include "fsl_uart.h"
 #include "fsl_gpio.h"
+#include "fsl_uart.h"
 
 #include "FreeRTOS.h"
 #include "task.h"

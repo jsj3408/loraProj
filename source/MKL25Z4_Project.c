@@ -36,7 +36,7 @@
 * Includes section
 *********************************************************************************************************************/
 #include "MKL25Z4_Project.h"
-#include "App_LORA.h"
+
 /* TODO: insert other include files here. */
 
 /* TODO: insert other definitions and declarations here. */
@@ -44,7 +44,20 @@
 /**********************************************************************************************************************
 * Defines section
 *********************************************************************************************************************/
+#define TESTUARTBASE	UART2_BASE
 
+
+#if TESTUARTBASE == UART0_BASE
+	#define TESTUART 		UART0
+	#define UARTCLOCK kCLOCK_PllFllSelClk
+	#define UARTIRQ UART0_IRQn
+	#define UARTIRQ_HANDLER	UART0_IRQHandler
+#else
+	#define TESTUART 		UART2
+	#define UARTCLOCK 		kCLOCK_BusClk
+	#define UARTIRQ 		UART2_IRQn
+	#define UARTIRQ_HANDLER	UART2_IRQHandler
+#endif
 /**********************************************************************************************************************
 * Local typedef section
 *********************************************************************************************************************/
@@ -56,13 +69,6 @@
 /**********************************************************************************************************************
 * Global variable
 *********************************************************************************************************************/
-uint8_t status;
-status_t result = kStatus_Success;
-extern bool interrupt_issued;
-
-TaskHandle_t * handle = NULL;
-halSPIAction_t * SPI_handle = NULL;
-
 extern uint32_t SystemCoreClock;
 
 volatile bool rxDataPresent = false;
@@ -71,7 +77,6 @@ volatile uint8_t rxDataBuf[10] = {0};
 * Local function declaration section
 *********************************************************************************************************************/
 static void KL_InitPins(void);
-static void LoraPOCTestFunction(void);
 static void ConfigureSystemClock(void);
 static void UARTTest(void);
 /**********************************************************************************************************************
@@ -89,114 +94,15 @@ static void UARTTest(void);
 ******************************************************************************/
 int main(void)
 {
-	int ret=0;
-#ifdef BAREMETAL
-	LoraPOCTestFunction();
-#else
-	//setting to 32KHz since we want low power consumption
-	ConfigureSystemClock();
-	KL_InitPins();
-#ifdef USE_DISPLAY
-	ret = i2c_init();
-#endif
-	SPI_handle = halConfigureSPIHandle(spi_init, spi_transfer_read, spi_transfer_write, NULL);
-	if(NULL == SPI_handle)
-	{
-		DB_PRINT(1, "Couldn't configure SPI. exit!");
-		return 0;
-	}
-	if(false == SPI_handle->halSPIInit())
-	{
-		DB_PRINT(1, "Couldn't initialize SPI. exit!");
-		return 0;
-	}
-	if(App_LORA_success != App_LORA_init())
-	{
-		DB_PRINT(1, "Lora Init failed!");
-		return 0;
-	}
-	if(pdFALSE == xTaskCreate(App_LORA_run, "App_LORA_task", configMINIMAL_STACK_SIZE+0x300, NULL, 1,
-			handle))
-	{
-		DB_PRINT(1, "Starting LORA task failed!");
-	}
-	else
-	{
-		vTaskStartScheduler();
-	}
-#endif
+    /* Init board hardware. */
+	KL_InitPins(); //Initializing pins
+	UARTTest();
     return 0;
 }
-
-
-//static void sampleTask(void * args)
-//{
-//	for(;;)
-//	{
-//		DB_PRINT(1, "You are officially running this task!");
-//		vTaskDelay(pdMS_TO_TICKS(1000));
-//	}
-//}
 
 /**********************************************************************************************************************
 * Local function definition section
 *********************************************************************************************************************/
-/*******************************************************************************
- * @fn         LoraPOCTestFunction
- *
- * @brief      This function tests the functionality of two LORA modules powered
- * 				by two FRDM-KL25 MCUs, one acting as the transmitter and another
- * 				as a receiver.
- * 				Two FW builds need to be done for TX and RX.
- * 				Enable macro LORA_TX and disable macro LORA_RX for FW to be
- * 				flashed into one MCU acting as a TX. Enable macro LORA_RX and
- * 				disable LORA_TX and create the build to be flashed into another
- * 				MCU acting as receiver.
- * 				When TX is done, the white LED will turn to blue and when RX is
- * 				received the white LED will turn to blue or otherwise remain white.
- *
- * @param[in]  void
- *
- * @return     void
- *
-******************************************************************************/
-static void LoraPOCTestFunction(void)
-{
-    //status_t result = 1;
-    uint8_t ret = 0;
-    uint8_t loraAddr[] = {0x01, 0x0D, 0x10, 0x18};
-    //each read operation will require two bytes of output
-    uint8_t loraData[10] = {0};
-
-    /* Init board hardware. */
-	KL_InitPins(); //Initializing pins
-	UARTTest();
-	/*dont come here*/
-    printf("i2c/SPI pins and GPIO pins initialized...I hope\n");
-    ret = spi_init();
-    if(ret)
-    {
-    	lora_init();
-#ifdef LORA_TX
-    	lora_test_transmit();
-//    	while(interrupt_issued == false)
-//    	{
-//    		DB_PRINT(1, "waiting for TX interrupt");
-//    		SysTick_DelayTicks(500U);
-//    	}
-#endif
-#ifdef LORA_RX
-    	lora_test_receive();
-//    	while(interrupt_issued == false)
-//    	{
-//    		DB_PRINT(1, "waiting for RX interrupt");
-//    		SysTick_DelayTicks(500U);
-//    	}
-#endif
-    }
-    printf("***************End of program execution. Now wait for interrupts**************");
-}
-
 /*******************************************************************************
  * @fn         KL_InitPins
  *
@@ -251,7 +157,6 @@ static void KL_InitPins(void)
 	PORT_SetPinConfig(PORTE, 1U, &config);	
 #endif
 
-#ifdef BAREMETAL
 	//since the LED's are common cathode, we drive them Low to turn ON and High to turn OFF
 	gpio_pin_config_t output_config_LED =
 	{
@@ -267,13 +172,17 @@ static void KL_InitPins(void)
 	//set them as outputs
 	GPIO_PinInit(GPIOB, 18U, &output_config_LED);
 	GPIO_PinInit(GPIOB, 19U, &output_config_LED);
-#endif
 
 	/*set up UART*/
-	//enabling clock for only PortE for I2C communication
+#if TESTUARTBASE == UART0_BASE
+	PORT_SetPinMux(PORTD, 7U, kPORT_MuxAlt4); //UART0TX
+	PORT_SetPinMux(PORTD, 6U, kPORT_MuxAlt4); //UART0RX
+#else
+	//enabling clock for only PortE
 	CLOCK_EnableClock(kCLOCK_PortE);
 	PORT_SetPinMux(PORTE, 22U, kPORT_MuxAlt4); //UART2TX
 	PORT_SetPinMux(PORTE, 23U, kPORT_MuxAlt4); //UART2RX
+#endif
 }
 
 
@@ -286,8 +195,8 @@ static void ConfigureSystemClock(void)
 	//here we want to select options that give us 48MHz output
 	MCG->C4 |= MCG_C4_DRST_DRS(1);
 	MCG->C4 |= MCG_C4_DMX32(1);
-	//divide by 2 to get 24MHz.
-	SIM->CLKDIV1 |= SIM_CLKDIV1_OUTDIV1(0b01);
+	//0b00: no divide. 0b01, divide by 2
+	SIM->CLKDIV1 |= SIM_CLKDIV1_OUTDIV1(0b00);
 	SystemCoreClockUpdate();
 	DB_PRINT(1, "System core clock value is %lu Hz", SystemCoreClock);
 }
@@ -295,28 +204,37 @@ static void ConfigureSystemClock(void)
 static void UARTTest(void)
 {
 	ConfigureSystemClock();
-	//i've read that this value below is System clock div by 2.
-	uint32_t UARTClkFreq = CLOCK_GetFreq(kCLOCK_BusClk);
+    int ret = 0;
+    uint32_t UARTClkFreq;
 	uart_config_t uartConfig;
     UART_GetDefaultConfig(&uartConfig);
     uartConfig.baudRate_Bps = 57600;
     uartConfig.enableTx = true;
     uartConfig.enableRx = true;
+	//i've read that this value below is System clock div by 2.
+	UARTClkFreq = CLOCK_GetFreq(UARTCLOCK);
+	DB_PRINT(1, "UART Clock Freq is %lu Hz", UARTClkFreq);
 
-//    SIM->SOPT2 |= SIM_SOPT2_UART0SRC(1); //we want UART freq to be div by 2.
-    SIM->SCGC4 |= SIM_SCGC4_UART2(1);//do i have to do this?
-    int ret = 0;
-    ret = UART_Init(UART2, &uartConfig, UARTClkFreq);
+#if TESTUARTBASE == UART0_BASE
+    SIM->SOPT2 |= SIM_SOPT2_UART0SRC(1); //we want UART freq to be div by 2.
+#endif
+//    SIM->SCGC4 |= SIM_SCGC4_UART2(1);//do i have to do this?
+    ret = UART_Init(TESTUART, &uartConfig, UARTClkFreq);
+    if(ret != kStatus_Success)
+    {
+    	DB_PRINT(1, "UART Init failed for baud %d with return code %d", uartConfig.baudRate_Bps, ret);
+    	return;
+    }
     /* Enable RX interrupt. */
-    UART_EnableInterrupts(UART2, kUART_RxDataRegFullInterruptEnable | kUART_RxOverrunInterruptEnable);
-    EnableIRQ(UART2_IRQn);
-    uint32_t getUARTStatusFlag = UART_GetStatusFlags(UART2);
+    UART_EnableInterrupts(TESTUART, kUART_RxDataRegFullInterruptEnable | kUART_RxOverrunInterruptEnable);
+    EnableIRQ(UARTIRQ);
+    uint32_t getUARTStatusFlag = UART_GetStatusFlags(TESTUART);
     while(1)
     {
 		if(kUART_TxDataRegEmptyFlag & getUARTStatusFlag)
 		{
 			DB_PRINT(1, "Write something");
-			UART_WriteByte(UART2, 'I');
+			UART_WriteByte(TESTUART, 'I');
 			break;
 		}
 		else
@@ -330,18 +248,18 @@ static void UARTTest(void)
     {
     	if(rxDataPresent == true)
     	{
-    		DB_PRINT(1, "We have a new data! Data is %d", rxDataBuf[0]);
+    		DB_PRINT(1, "We have a new data! Data is 0x%x", rxDataBuf[0]);
     		rxDataPresent = false;
     	}
     }
 }
 
-void UART2_IRQHandler(void)
+void UARTIRQ_HANDLER(void)
 {
     /* If new data arrived. */
-    if ((kUART_RxDataRegFullFlag | kUART_RxOverrunFlag) & UART_GetStatusFlags(UART2))
+    if ((kUART_RxDataRegFullFlag | kUART_RxOverrunFlag) & UART_GetStatusFlags(TESTUART))
     {
-        rxDataBuf[0] = UART_ReadByte(UART2);
+        rxDataBuf[0] = UART_ReadByte(TESTUART);
         rxDataPresent = true;
     }
 }
